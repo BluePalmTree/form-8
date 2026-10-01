@@ -35,6 +35,17 @@ export function dancerLabel(name: string, index: number): string {
     .join('')
 }
 
+/** Column label like a chess board / spreadsheet: A, B, … Z, AA, AB, … */
+export function columnLabel(i: number): string {
+  let n = i
+  let out = ''
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out
+    n = Math.floor(n / 26) - 1
+  } while (n >= 0)
+  return out
+}
+
 export const colorFor = (i: number) => hslToHex((i * 137.508) % 360, 65, 42)
 
 export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
@@ -99,6 +110,7 @@ export function createChoreography(name: string, dancerCount = 8): Choreography 
   const formation: Formation = {
     id: uid(),
     name: '',
+    note: '',
     duration: 4,
     hold: 2,
     pathStyle: 'straight',
@@ -260,6 +272,7 @@ export function parseChoreography(data: unknown): Choreography {
     return {
       id: String(f?.id ?? uid()),
       name: String(f?.name ?? ''),
+      note: String(f?.note ?? ''),
       duration: Math.max(0, Math.round(num(f?.duration, 4))),
       hold: Math.max(0, Math.round(num(f?.hold, 0))),
       pathStyle: (['straight', 'out', 'in'] as PathStyle[]).includes(f?.pathStyle as PathStyle)

@@ -20,6 +20,8 @@ export type PathStyle = 'straight' | 'out' | 'in'
 export interface Formation {
   id: string
   name: string
+  /** Free-text note for the trainer (counts, arm movements, reminders). */
+  note: string
   /** Beats ("Takte") the transition from the previous formation takes (ignored for the first). */
   duration: number
   /** Beats the dancers stand still in this formation. */

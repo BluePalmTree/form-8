@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   arrivalTime,
+  columnLabel,
   controlFor,
   controlFromHandle,
   dancerLabel,
@@ -12,6 +13,7 @@ import {
   stateAt,
   totalDuration,
 } from './model'
+import { useChoreo } from './store'
 
 describe('paths', () => {
   const p0 = { x: 0, y: 0 }
@@ -50,6 +52,7 @@ describe('playback', () => {
   c.formations.push({
     id: 'f2',
     name: '',
+    note: '',
     duration: 2,
     hold: 1,
     pathStyle: 'straight',
@@ -152,5 +155,34 @@ describe('path style', () => {
     const { c, a } = make('out')
     c.formations[1].controls[a.id] = { x: 1, y: 1 }
     expect(controlFor(c, 1, a.id)).toEqual({ x: 1, y: 1 })
+  })
+})
+
+describe('formation notes', () => {
+  it('round-trips and defaults to an empty note', () => {
+    const c = createChoreography('x', 2)
+    c.formations[0].note = 'Arme hoch auf 3'
+    expect(parseChoreography(JSON.parse(JSON.stringify(c))).formations[0].note).toBe('Arme hoch auf 3')
+    delete (c.formations[0] as { note?: string }).note
+    expect(parseChoreography(JSON.parse(JSON.stringify(c))).formations[0].note).toBe('')
+  })
+
+  it('undoes a burst of typing in one step', () => {
+    const st = useChoreo.getState()
+    st.replace(createChoreography('x', 2))
+    for (const text of ['A', 'Ar', 'Arm']) useChoreo.getState().updateFormation(0, { note: text })
+    expect(useChoreo.getState().choreo.formations[0].note).toBe('Arm')
+    useChoreo.getState().undo()
+    expect(useChoreo.getState().choreo.formations[0].note).toBe('')
+  })
+})
+
+describe('columnLabel', () => {
+  it('counts like a chess board and then like a spreadsheet', () => {
+    expect(columnLabel(0)).toBe('A')
+    expect(columnLabel(7)).toBe('H')
+    expect(columnLabel(25)).toBe('Z')
+    expect(columnLabel(26)).toBe('AA')
+    expect(columnLabel(60)).toBe('BI')
   })
 })

@@ -159,6 +159,15 @@ export function FormationBar() {
             {t('formation.hold')}
             <NumField value={f.hold} min={0} max={256} integer onCommit={(v) => st().updateFormation(index, { hold: v })} />
           </label>
+          <label className="wide">
+            {t('formation.note')}
+            <textarea
+              rows={3}
+              value={f.note}
+              placeholder={t('formation.notePlaceholder')}
+              onChange={(e) => st().updateFormation(index, { note: e.target.value })}
+            />
+          </label>
           <div className="row">
             <button
               disabled={playing || index === 0 || Object.keys(f.controls).length === 0}

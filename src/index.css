@@ -62,7 +62,8 @@ button.icon {
 }
 
 input:not([type='checkbox']):not([type='color']),
-select {
+select,
+textarea {
   width: 100%;
   min-height: 38px;
   padding: 0 10px;
@@ -326,4 +327,18 @@ h2 {
   margin-left: -1.5px;
   background: #111;
   pointer-events: none;
+}
+
+textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  resize: vertical;
+}
+
+.fields .wide {
+  grid-column: 1 / -1;
 }

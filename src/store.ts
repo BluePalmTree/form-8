@@ -26,9 +26,19 @@ interface ChoreoState {
   duplicateFormation: (index: number) => void
   removeFormation: (index: number) => void
   moveFormation: (index: number, dir: -1 | 1) => void
-  updateFormation: (index: number, patch: Partial<Pick<Formation, 'name' | 'duration' | 'hold'>>) => void
+  updateFormation: (index: number, patch: Partial<Pick<Formation, 'name' | 'note' | 'duration' | 'hold'>>) => void
   setPositions: (index: number, positions: Record<string, Point>, record?: boolean) => void
   setControl: (index: number, id: string, c: Point | null, record?: boolean) => void
+}
+
+let lastTyping = { key: '', at: 0 }
+
+/** Typing in a text field should be one undo step, not one per keystroke. */
+function isTypingBurst(key: string): boolean {
+  const now = Date.now()
+  const burst = lastTyping.key === key && now - lastTyping.at < 1500
+  lastTyping = { key, at: now }
+  return burst
 }
 
 export const useChoreo = create<ChoreoState>((set) => {
@@ -63,7 +73,7 @@ export const useChoreo = create<ChoreoState>((set) => {
       ),
     replace: (c) => set({ choreo: c, past: [], future: [] }),
 
-    setName: (name) => mutate((d) => void (d.name = name)),
+    setName: (name) => mutate((d) => void (d.name = name), !isTypingBurst('choreo-name')),
 
     setStage: (stage) =>
       mutate((d) => {
@@ -111,7 +121,7 @@ export const useChoreo = create<ChoreoState>((set) => {
       mutate((d) => {
         const dancer = d.dancers.find((x) => x.id === id)
         if (dancer) Object.assign(dancer, patch)
-      }),
+      }, !('name' in patch && isTypingBurst(`dancer-${id}`))),
 
     duplicateFormation: (index) =>
       mutate((d) => {
@@ -119,6 +129,7 @@ export const useChoreo = create<ChoreoState>((set) => {
         d.formations.splice(index + 1, 0, {
           id: uid(),
           name: '',
+          note: '',
           duration: src.duration,
           hold: src.hold,
           pathStyle: src.pathStyle,
@@ -149,7 +160,7 @@ export const useChoreo = create<ChoreoState>((set) => {
     updateFormation: (index, patch) =>
       mutate((d) => {
         Object.assign(d.formations[index], patch)
-      }),
+      }, !(('name' in patch || 'note' in patch) && isTypingBurst(`formation-${index}-${Object.keys(patch)[0]}`))),
 
     setPositions: (index, positions, record = true) =>
       mutate((d) => {

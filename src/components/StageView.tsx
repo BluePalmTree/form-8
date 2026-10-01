@@ -1,5 +1,5 @@
 import type { PointerEvent, SVGProps } from 'react'
-import { DANCER_RADIUS, controlFor, dancerLabel, endDirection, handlePos, pathD } from '../model'
+import { DANCER_RADIUS, columnLabel, controlFor, dancerLabel, endDirection, handlePos, pathD } from '../model'
 import type { Choreography, Dancer, Point } from '../types'
 
 const MARGIN = 1
@@ -7,6 +7,8 @@ const TITLE_SPACE = 0.9
 /** Invisible touch target around dancers and path handles (fingers are bigger than the visible marks). */
 const HIT_RADIUS = 0.5
 const HANDLE_HIT_RADIUS = 0.38
+/** Light color of the chess-board style grid coordinates. */
+const COORD_COLOR = '#b3aa94'
 
 export function viewBoxOf(stage: { width: number; depth: number }, withTitle: boolean) {
   const top = MARGIN + (withTitle ? TITLE_SPACE : 0)
@@ -106,6 +108,16 @@ export function StageView({
       <rect x={0} y={0} width={stage.width} height={stage.depth} fill="#f3efe6" stroke="#7a7466" strokeWidth={0.06} />
       {gridLines.map(([x1, y1, x2, y2], i) => (
         <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#d9d3c4" strokeWidth={0.03} />
+      ))}
+      {Array.from({ length: stage.width + 1 }, (_, i) => (
+        <text key={`c${i}`} x={i} y={-0.25} fontSize={0.3} textAnchor="middle" fill={COORD_COLOR}>
+          {columnLabel(i)}
+        </text>
+      ))}
+      {Array.from({ length: stage.depth + 1 }, (_, i) => (
+        <text key={`r${i}`} x={-0.3} y={stage.depth - i} fontSize={0.3} textAnchor="middle" dominantBaseline="central" fill={COORD_COLOR}>
+          {i + 1}
+        </text>
       ))}
       <line
         x1={stage.width / 2}
