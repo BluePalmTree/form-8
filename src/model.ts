@@ -62,7 +62,45 @@ export function clampObjectState(o: ObjectState, stage: Stage): ObjectState {
   }
 }
 
-export const colorFor = (i: number) => hslToHex((i * 137.508) % 360, 65, 42)
+/**
+ * Fixed palette of 20 well distinguishable colors (after Sasha Trubetskoy's "20 distinct colors").
+ * The first dancers always get the same colors, in this order.
+ */
+export const PALETTE = [
+  '#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4',
+  '#46f0f0', '#f032e6', '#bcf60c', '#008080', '#9a6324',
+  '#ffe119', '#800000', '#000075', '#808000', '#808080',
+  '#fabed4', '#e6beff', '#aaffc3', '#ffd8b1', '#000000',
+]
+
+/** Color of the i-th dancer: the fixed palette first, then evenly spread hues. */
+export const colorFor = (i: number) => PALETTE[i] ?? hslToHex((i * 137.508) % 360, 65, 42)
+
+/** Automatic colors used before the fixed palette; used to migrate old files. */
+const legacyColorFor = (i: number) => hslToHex((i * 137.508) % 360, 65, 42)
+
+function luminance(hex: string): number {
+  const v = (i: number) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * v(1) + 0.7152 * v(3) + 0.0722 * v(5)
+}
+
+export const isLight = (hex: string) => /^#[0-9a-f]{6}$/i.test(hex) && luminance(hex) > 0.35
+
+/** Readable label color on top of a dancer color. */
+export const textOn = (hex: string) => (isLight(hex) ? '#222222' : '#ffffff')
+
+/** Color for thin lines and rings: light dancer colors are darkened so they show on the stage floor. */
+export function lineColor(hex: string): string {
+  if (!isLight(hex)) return hex
+  const mix = (i: number) =>
+    Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.55)
+      .toString(16)
+      .padStart(2, '0')
+  return `#${mix(1)}${mix(3)}${mix(5)}`
+}
 
 export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
 
@@ -314,7 +352,8 @@ export function parseChoreography(data: unknown): Choreography {
   const dancers: Dancer[] = d.dancers.map((x, i) => ({
     id: String(x?.id ?? uid()),
     name: String(x?.name ?? ''),
-    color: typeof x?.color === 'string' ? x.color : colorFor(i),
+    // Automatic colors of older files move to the fixed palette; custom colors stay.
+    color: typeof x?.color !== 'string' || x.color.toLowerCase() === legacyColorFor(i) ? colorFor(i) : x.color,
   }))
   const objects: StageObject[] = (Array.isArray(d.objects) ? d.objects : []).map((o) => ({
     id: String(o?.id ?? uid()),

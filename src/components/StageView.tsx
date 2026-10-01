@@ -1,5 +1,5 @@
 import type { PointerEvent, SVGProps } from 'react'
-import { DANCER_RADIUS, columnLabel, controlFor, dancerLabel, endDirection, handlePos, pathD } from '../model'
+import { DANCER_RADIUS, columnLabel, controlFor, dancerLabel, endDirection, isLight, lineColor, textOn, handlePos, pathD } from '../model'
 import type { Choreography, Dancer, ObjectState, Point } from '../types'
 
 const MARGIN = 1
@@ -92,7 +92,7 @@ export function StageView({
         onDoubleClick={() => onHandleReset?.(d.id)}
       >
         <circle r={HANDLE_HIT_RADIUS} fill="transparent" />
-        <circle r={0.17} fill={formation.controls[d.id] ? d.color : '#fff'} stroke={d.color} strokeWidth={0.06} />
+        <circle r={0.17} fill={formation.controls[d.id] ? lineColor(d.color) : '#fff'} stroke={lineColor(d.color)} strokeWidth={0.06} />
       </g>
     )
   }
@@ -196,8 +196,8 @@ export function StageView({
           ].join(' ')
           return (
             <g key={d.id}>
-              <circle cx={p0.x} cy={p0.y} r={R} fill={d.color} fillOpacity={0.2} stroke={d.color} strokeWidth={0.04} strokeDasharray="0.1 0.08" />
-              <path d={pathD(p0, p1, c)} fill="none" stroke={d.color} strokeWidth={d.id === selectedPathId ? 0.14 : 0.08} strokeOpacity={0.85} strokeLinecap="round" />
+              <circle cx={p0.x} cy={p0.y} r={R} fill={d.color} fillOpacity={0.2} stroke={lineColor(d.color)} strokeWidth={0.04} strokeDasharray="0.1 0.08" />
+              <path d={pathD(p0, p1, c)} fill="none" stroke={lineColor(d.color)} strokeWidth={d.id === selectedPathId ? 0.14 : 0.08} strokeOpacity={0.85} strokeLinecap="round" />
               {interactive && (
                 <path
                   d={pathD(p0, p1, c)}
@@ -208,7 +208,7 @@ export function StageView({
                   onPointerDown={(e) => onPathDown?.(d.id, e)}
                 />
               )}
-              <polygon points={arrow} fill={d.color} />
+              <polygon points={arrow} fill={lineColor(d.color)} />
             </g>
           )
         })}
@@ -227,8 +227,8 @@ export function StageView({
             style={interactive ? { cursor: 'grab' } : undefined}
           >
             {interactive && <circle r={HIT_RADIUS} fill="transparent" />}
-            <circle r={R} fill={d.color} stroke={selected ? '#111' : '#fff'} strokeWidth={selected ? 0.09 : 0.06} />
-            <text fontSize={label.length > 2 ? 0.22 : label.length > 1 ? 0.3 : 0.38} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill="#fff" pointerEvents="none">
+            <circle r={R} fill={d.color} stroke={selected ? '#111' : isLight(d.color) ? '#6b665c' : '#fff'} strokeWidth={selected ? 0.09 : 0.06} />
+            <text fontSize={label.length > 2 ? 0.22 : label.length > 1 ? 0.3 : 0.38} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill={textOn(d.color)} pointerEvents="none">
               {label}
             </text>
           </g>

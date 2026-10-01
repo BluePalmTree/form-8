@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportJson, formationPng, pngFiles, shareOrDownload } from '../export'
-import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, totalDuration } from '../model'
+import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, textOn, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, totalDuration } from '../model'
 import type { ObjectState, PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
@@ -155,7 +155,7 @@ function TimingSection({ index }: { index: number }) {
             const e = effectiveTiming(f, d.id)
             return (
               <li key={d.id}>
-                <span className="num" style={{ background: d.color }}>
+                <span className="num" style={{ background: d.color, color: textOn(d.color) }}>
                   {dancerLabel(d.name, i)}
                 </span>
                 {t('timing.entry', { from: e.delay, to: e.delay + e.length })}
@@ -416,7 +416,7 @@ export function DancerPanel() {
           <li key={d.id} className={selectedIds.includes(d.id) ? 'selected' : ''}
             onClick={(e) => (e.shiftKey || e.ctrlKey || e.metaKey ? useUi.getState().toggleSelect(d.id) : useUi.getState().setSelection([d.id]))}
           >
-            <span className="num" style={{ background: d.color }}>
+            <span className="num" style={{ background: d.color, color: textOn(d.color) }}>
               {i + 1}
             </span>
             <input value={d.name} placeholder={t('dancers.name')} aria-label={t('dancers.name')} onChange={(e) => st().updateDancer(d.id, { name: e.target.value })} />

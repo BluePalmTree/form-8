@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   arrivalTime,
+  PALETTE,
   clampObjectState,
+  colorFor,
+  hslToHex,
+  isLight,
+  lineColor,
+  textOn,
   columnLabel,
   defaultObjectState,
   effectiveTiming,
@@ -279,5 +285,32 @@ describe('stage objects', () => {
     const raw = JSON.parse(JSON.stringify(c))
     delete raw.objects
     expect(parseChoreography(raw).objects).toEqual([])
+  })
+})
+
+describe('dancer colors', () => {
+  it('uses a fixed palette of 20 distinct colors for the first dancers', () => {
+    expect(PALETTE).toHaveLength(20)
+    expect(new Set(PALETTE).size).toBe(20)
+    expect(colorFor(0)).toBe('#e6194b')
+    expect(colorFor(19)).toBe(PALETTE[19])
+    expect(colorFor(20)).not.toBe(colorFor(21))
+  })
+
+  it('picks readable text and darker lines for light colors', () => {
+    expect(textOn('#e6194b')).toBe('#ffffff')
+    expect(textOn('#ffe119')).toBe('#222222')
+    expect(isLight('#ffe119')).toBe(true)
+    expect(lineColor('#e6194b')).toBe('#e6194b')
+    expect(lineColor('#ffe119')).not.toBe('#ffe119')
+  })
+
+  it('migrates automatic legacy colors but keeps custom ones', () => {
+    const c = createChoreography('x', 3)
+    c.dancers[0].color = hslToHex(0, 65, 42) // legacy color of dancer 0
+    c.dancers[1].color = hslToHex((1 * 137.508) % 360, 65, 42) // legacy color of dancer 1
+    c.dancers[2].color = '#123456' // chosen by the user
+    const parsed = parseChoreography(JSON.parse(JSON.stringify(c)))
+    expect(parsed.dancers.map((d) => d.color)).toEqual([colorFor(0), colorFor(1), '#123456'])
   })
 })
