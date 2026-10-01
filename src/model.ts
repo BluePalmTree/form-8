@@ -260,8 +260,8 @@ export function parseChoreography(data: unknown): Choreography {
     return {
       id: String(f?.id ?? uid()),
       name: String(f?.name ?? ''),
-      duration: Math.max(0, num(f?.duration, 4)),
-      hold: Math.max(0, num(f?.hold, 0)),
+      duration: Math.max(0, Math.round(num(f?.duration, 4))),
+      hold: Math.max(0, Math.round(num(f?.hold, 0))),
       pathStyle: (['straight', 'out', 'in'] as PathStyle[]).includes(f?.pathStyle as PathStyle)
         ? (f.pathStyle as PathStyle)
         : 'straight',

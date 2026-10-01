@@ -60,7 +60,8 @@ function Timeline() {
   const total = totalDuration(choreo)
   const pos = playing ? Math.min(time, total) : arrivalTime(choreo, index)
   const pct = total > 0 ? (pos / total) * 100 : 0
-  const shown = Math.round(pos * 10) / 10
+  // Whole beats only; the epsilon guards against float error at segment ends.
+  const shown = Math.floor(pos + 1e-9)
 
   return (
     <div className="timeline-wrap">
@@ -139,7 +140,7 @@ export function FormationBar() {
           </label>
           <label>
             {t('formation.duration')}
-            <NumField value={f.duration} min={0} max={256} step={1} disabled={index === 0} onCommit={(v) => st().updateFormation(index, { duration: v })} />
+            <NumField value={f.duration} min={0} max={256} integer disabled={index === 0} onCommit={(v) => st().updateFormation(index, { duration: v })} />
           </label>
           <label>
             {t('formation.pathStyle')}
@@ -151,7 +152,7 @@ export function FormationBar() {
           </label>
           <label>
             {t('formation.hold')}
-            <NumField value={f.hold} min={0} max={256} step={1} onCommit={(v) => st().updateFormation(index, { hold: v })} />
+            <NumField value={f.hold} min={0} max={256} integer onCommit={(v) => st().updateFormation(index, { hold: v })} />
           </label>
           <div className="row">
             <button

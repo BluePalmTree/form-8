@@ -87,6 +87,15 @@ describe('import', () => {
     expect(fixed.formations[0].positions[c.dancers[0].id]).toBeDefined()
   })
 
+  it('rounds beat counts to whole numbers', () => {
+    const c = createChoreography('x', 2)
+    c.formations[0].duration = 2.5
+    c.formations[0].hold = 1.4
+    const parsed = parseChoreography(JSON.parse(JSON.stringify(c)))
+    expect(parsed.formations[0].duration).toBe(3)
+    expect(parsed.formations[0].hold).toBe(1)
+  })
+
   it('rejects garbage', () => {
     expect(() => parseChoreography({})).toThrow()
   })
