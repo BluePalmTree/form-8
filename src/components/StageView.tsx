@@ -131,11 +131,6 @@ export function StageView({
             <text fontSize={label.length > 2 ? 0.22 : label.length > 1 ? 0.3 : 0.38} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill="#fff" pointerEvents="none">
               {label}
             </text>
-            {d.name && (
-              <text y={R + 0.28} fontSize={0.3} textAnchor="middle" fill="#222" pointerEvents="none">
-                {d.name}
-              </text>
-            )}
           </g>
         )
       })}
