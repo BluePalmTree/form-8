@@ -186,6 +186,16 @@ export function totalDuration(c: Choreography): number {
   return c.formations.reduce((sum, f, i) => sum + f.hold + (i > 0 ? f.duration : 0), 0)
 }
 
+/** Beat at which formation `i` is reached (end of its transition). */
+export function arrivalTime(c: Choreography, i: number): number {
+  let t = 0
+  for (let k = 0; k <= i; k++) {
+    if (k > 0) t += c.formations[k].duration
+    if (k < i) t += c.formations[k].hold
+  }
+  return t
+}
+
 /** Dancer positions and formation index (the target while moving) at a time in beats. */
 export function stateAt(c: Choreography, time: number): { index: number; positions: Record<string, Point> } {
   const fs = c.formations

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  arrivalTime,
   controlFor,
   controlFromHandle,
   dancerLabel,
@@ -60,6 +61,11 @@ describe('playback', () => {
 
   it('sums hold and transition times', () => {
     expect(totalDuration(c)).toBe(1 + 2 + 1)
+  })
+
+  it('computes the beat at which each formation is reached', () => {
+    expect(arrivalTime(c, 0)).toBe(0)
+    expect(arrivalTime(c, 1)).toBe(1 + 2)
   })
 
   it('holds, moves, and ends in the last formation', () => {

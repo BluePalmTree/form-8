@@ -19,7 +19,7 @@ const de = {
     pathStyle: 'Wege',
     resetCurves: 'Eigene Kurven zurücksetzen',
     tempo: 'Tempo (BPM)',
-    total: 'Gesamt: {{count}} Takte',
+    progress: '{{pos}} / {{total}} Takte',
   },
   pathStyle: { straight: 'Gerade', out: 'Bogen nach außen', in: 'Bogen nach innen' },
   stage: {
@@ -78,7 +78,7 @@ const en: typeof de = {
     pathStyle: 'Paths',
     resetCurves: 'Reset custom curves',
     tempo: 'Tempo (BPM)',
-    total: 'Total: {{count}} counts',
+    progress: '{{pos}} / {{total}} counts',
   },
   pathStyle: { straight: 'Straight', out: 'Bow outward', in: 'Bow inward' },
   stage: {

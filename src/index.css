@@ -280,3 +280,50 @@ h2 {
   font-size: 0.8rem;
   color: var(--muted);
 }
+
+.timeline-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timeline {
+  position: relative;
+  display: flex;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ece8fb;
+}
+
+.seg {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-right: 1px solid #fff;
+  border-radius: 0;
+  background: #d9d3f5;
+  font-size: 0.75rem;
+}
+
+.seg:last-of-type {
+  border-right: 0;
+}
+
+.seg.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: #111;
+  pointer-events: none;
+}

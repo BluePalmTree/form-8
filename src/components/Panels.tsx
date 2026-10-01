@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportJson, formationPng, pngFiles, shareOrDownload } from '../export'
-import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, createChoreography, parseChoreography, totalDuration } from '../model'
+import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, arrivalTime, createChoreography, parseChoreography, totalDuration } from '../model'
 import type { PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
@@ -49,23 +49,66 @@ export function PlaybackBar() {
   )
 }
 
+/** Progress through the planned beats: one segment per formation, plus a playhead. */
+function Timeline() {
+  const { t } = useTranslation()
+  const label = useFormationName()
+  const choreo = useChoreo((s) => s.choreo)
+  const index = useUi((s) => s.index)
+  const playing = useUi((s) => s.playing)
+  const time = useUi((s) => s.time)
+  const total = totalDuration(choreo)
+  const pos = playing ? Math.min(time, total) : arrivalTime(choreo, index)
+  const pct = total > 0 ? (pos / total) * 100 : 0
+  const shown = Math.round(pos * 10) / 10
+
+  return (
+    <div className="timeline-wrap">
+      <div
+        className="timeline"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={shown}
+        aria-valuetext={t('formation.progress', { pos: shown, total })}
+      >
+        {choreo.formations.map((f, i) => {
+          const len = (i > 0 ? f.duration : 0) + f.hold
+          return (
+            <button
+              key={f.id}
+              className={i === index ? 'seg active' : 'seg'}
+              style={{ flexGrow: len, flexBasis: 0 }}
+              disabled={playing}
+              title={label(f.name, i)}
+              onClick={() => useUi.getState().setIndex(i)}
+            >
+              {i + 1}
+            </button>
+          )
+        })}
+        <div className="playhead" style={{ left: `${pct}%` }} />
+      </div>
+      <span className="hint">{t('formation.progress', { pos: shown, total })}</span>
+    </div>
+  )
+}
+
 export function FormationBar() {
   const { t } = useTranslation()
   const label = useFormationName()
   const formations = useChoreo((s) => s.choreo.formations)
   const tempo = useChoreo((s) => s.choreo.tempo)
-  const total = useChoreo((s) => totalDuration(s.choreo))
   const st = useChoreo.getState
-  const { index, playing } = useUi()
+  const index = useUi((s) => s.index)
+  const playing = useUi((s) => s.playing)
   const setIndex = useUi.getState().setIndex
   const f = formations[index]
 
   return (
     <section className="panel">
-      <div className="panel-head">
-        <h2>{t('formation.title')}</h2>
-        <span className="hint">{t('formation.total', { count: total })}</span>
-      </div>
+      <h2>{t('formation.title')}</h2>
+      <Timeline />
       <div className="fields">
         <label>
           {t('formation.tempo')}
