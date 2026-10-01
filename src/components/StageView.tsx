@@ -1,6 +1,6 @@
 import type { PointerEvent, SVGProps } from 'react'
 import { DANCER_RADIUS, columnLabel, controlFor, dancerLabel, endDirection, handlePos, pathD } from '../model'
-import type { Choreography, Dancer, Point } from '../types'
+import type { Choreography, Dancer, ObjectState, Point } from '../types'
 
 const MARGIN = 1
 const TITLE_SPACE = 0.9
@@ -23,6 +23,9 @@ interface Props {
   showPaths: boolean
   selectedIds?: string[]
   selectedPathId?: string | null
+  selectedObjectId?: string | null
+  /** Overrides the object placements (used while animating). */
+  objectStates?: Record<string, ObjectState>
   /** Selection rectangle in stage coordinates. */
   marquee?: { x: number; y: number; w: number; h: number } | null
   audienceLabel: string
@@ -32,6 +35,7 @@ interface Props {
   onDancerDown?: (id: string, e: PointerEvent) => void
   onHandleDown?: (id: string, e: PointerEvent) => void
   onPathDown?: (id: string, e: PointerEvent) => void
+  onObjectDown?: (id: string, e: PointerEvent) => void
   onHandleReset?: (id: string) => void
   svgProps?: SVGProps<SVGSVGElement>
 }
@@ -47,6 +51,8 @@ export function StageView({
   showPaths,
   selectedIds,
   selectedPathId,
+  selectedObjectId,
+  objectStates,
   marquee,
   audienceLabel,
   title,
@@ -54,6 +60,7 @@ export function StageView({
   onDancerDown,
   onHandleDown,
   onPathDown,
+  onObjectDown,
   onHandleReset,
   svgProps,
 }: Props) {
@@ -132,6 +139,44 @@ export function StageView({
       <text x={stage.width / 2} y={stage.depth + 0.85} fontSize={0.4} textAnchor="middle" fill="#555">
         {audienceLabel}
       </text>
+
+      {choreo.objects.map((o) => {
+        const s = (objectStates ?? formation.objectStates)[o.id]
+        if (!s) return null
+        const selected = selectedObjectId === o.id
+        return (
+          <g
+            key={o.id}
+            transform={`translate(${s.x} ${s.y}) rotate(${s.rotation})`}
+            onPointerDown={onObjectDown ? (e) => onObjectDown(o.id, e) : undefined}
+            style={onObjectDown ? { cursor: 'grab' } : undefined}
+          >
+            <rect
+              x={-s.w / 2}
+              y={-s.h / 2}
+              width={s.w}
+              height={s.h}
+              fill={o.color}
+              fillOpacity={0.4}
+              stroke={selected ? '#111' : o.color}
+              strokeWidth={selected ? 0.07 : 0.05}
+              strokeDasharray={selected ? '0.15 0.1' : undefined}
+            />
+            {o.name && (
+              <text
+                transform={`rotate(${-s.rotation})`}
+                fontSize={0.32}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="#3d352c"
+                pointerEvents="none"
+              >
+                {o.name}
+              </text>
+            )}
+          </g>
+        )
+      })}
 
       {showPaths &&
         prev &&

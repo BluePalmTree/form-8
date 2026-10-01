@@ -9,6 +9,22 @@ export interface Stage {
   depth: number
 }
 
+/** A rectangular prop on the stage (set piece, platform, …). Its placement is stored per formation. */
+export interface StageObject {
+  id: string
+  name: string
+  color: string
+}
+
+/** Center position and size in meters, rotation in degrees. */
+export interface ObjectState {
+  x: number
+  y: number
+  w: number
+  h: number
+  rotation: number
+}
+
 export interface Dancer {
   id: string
   name: string
@@ -33,6 +49,8 @@ export interface Formation {
   /** Beats the dancers stand still in this formation. */
   hold: number
   positions: Record<string, Point>
+  /** Placement of every stage object in this formation. */
+  objectStates: Record<string, ObjectState>
   /** Shape of the paths from the previous formation: straight, or bowed away from / toward the group's center. */
   pathStyle: PathStyle
   /** Per-dancer start delay and walking time within the transition; absent = moves the whole transition. */
@@ -48,6 +66,7 @@ export interface Choreography {
   /** Beats per minute; one "Takt" is one beat. */
   tempo: number
   dancers: Dancer[]
+  objects: StageObject[]
   formations: Formation[]
   updatedAt: number
 }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   arrivalTime,
+  clampObjectState,
   columnLabel,
+  defaultObjectState,
   effectiveTiming,
   moveProgress,
   controlFor,
@@ -55,6 +57,7 @@ describe('playback', () => {
     id: 'f2',
     name: '',
     note: '',
+    objectStates: {},
     duration: 2,
     hold: 1,
     pathStyle: 'straight',
@@ -230,5 +233,51 @@ describe('per-dancer timing', () => {
     const start = c.formations[0].positions[b.id]
     expect(stateAt(c, 3).positions[b.id]).toEqual(start)
     expect(stateAt(c, 6).positions[b.id].x).toBeCloseTo(start.x + 2)
+  })
+})
+
+describe('stage objects', () => {
+  it('are placed in every formation and can differ per formation', () => {
+    useChoreo.getState().replace(createChoreography('x', 2))
+    useChoreo.getState().duplicateFormation(0)
+    const id = useChoreo.getState().addObject()
+    useChoreo.getState().setObjectState(1, id, { x: 8, rotation: 90 })
+    const [f0, f1] = useChoreo.getState().choreo.formations
+    expect(f0.objectStates[id]).toEqual(defaultObjectState({ width: 10, depth: 8 }))
+    expect(f1.objectStates[id]).toMatchObject({ x: 8, rotation: 90 })
+  })
+
+  it('are copied with a duplicated formation and removed everywhere', () => {
+    useChoreo.getState().replace(createChoreography('x', 2))
+    const id = useChoreo.getState().addObject()
+    useChoreo.getState().setObjectState(0, id, { x: 3 })
+    useChoreo.getState().duplicateFormation(0)
+    expect(useChoreo.getState().choreo.formations[1].objectStates[id].x).toBe(3)
+    useChoreo.getState().removeObject(id)
+    expect(useChoreo.getState().choreo.objects).toHaveLength(0)
+    expect(Object.keys(useChoreo.getState().choreo.formations[1].objectStates)).toHaveLength(0)
+  })
+
+  it('stay inside the stage', () => {
+    expect(clampObjectState({ x: 99, y: -4, w: 0, h: 2, rotation: 0 }, { width: 10, depth: 8 })).toMatchObject({ x: 10, y: 0, w: 0.2 })
+  })
+
+  it('glide between formations during playback', () => {
+    const c = createChoreography('x', 2)
+    useChoreo.getState().replace(c)
+    const id = useChoreo.getState().addObject()
+    useChoreo.getState().duplicateFormation(0)
+    useChoreo.getState().setObjectState(1, id, { x: 9, rotation: 90 })
+    const cur = useChoreo.getState().choreo
+    const mid = stateAt(cur, cur.formations[0].hold + cur.formations[1].duration / 2).objects[id]
+    expect(mid.x).toBeCloseTo((5 + 9) / 2)
+    expect(mid.rotation).toBeCloseTo(45)
+  })
+
+  it('load from older files without objects', () => {
+    const c = createChoreography('x', 2)
+    const raw = JSON.parse(JSON.stringify(c))
+    delete raw.objects
+    expect(parseChoreography(raw).objects).toEqual([])
   })
 })

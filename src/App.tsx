@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Stage } from './components/Stage'
-import { DancerPanel, FormationBar, LibraryPanel, PlaybackBar, SharePanel, StagePanel } from './components/Panels'
+import { DancerPanel, FormationBar, LibraryPanel, ObjectPanel, PlaybackBar, SharePanel, StagePanel } from './components/Panels'
 import { createChoreography, totalDuration } from './model'
 import { lastOpenedId, storage } from './storage'
 import { useChoreo, useUi } from './store'
@@ -133,6 +133,7 @@ export default function App() {
         <aside className="side">
           <SharePanel />
           <StagePanel />
+          <ObjectPanel />
           <DancerPanel />
           <LibraryPanel />
         </aside>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportJson, formationPng, pngFiles, shareOrDownload } from '../export'
 import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, totalDuration } from '../model'
-import type { PathStyle } from '../types'
+import type { ObjectState, PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
 import { useChoreo, useUi } from '../store'
@@ -295,6 +295,97 @@ export function StagePanel() {
         </label>
       </div>
       <p className="hint">{t('stage.resetWarning')}</p>
+    </section>
+  )
+}
+
+export function ObjectPanel() {
+  const { t } = useTranslation()
+  const objects = useChoreo((s) => s.choreo.objects)
+  const stage = useChoreo((s) => s.choreo.stage)
+  const index = useUi((s) => s.index)
+  const selectedId = useUi((s) => s.selectedObjectId)
+  const states = useChoreo((s) => s.choreo.formations[index]?.objectStates)
+  const st = useChoreo.getState
+  const selected = objects.find((o) => o.id === selectedId)
+  const state = selected && states?.[selected.id]
+  const set = (patch: Partial<ObjectState>) => selected && st().setObjectState(index, selected.id, patch)
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>{t('objects.title', { count: objects.length })}</h2>
+        <button
+          onClick={() => {
+            const id = st().addObject()
+            useUi.getState().setSelection([])
+            useUi.getState().selectObject(id)
+          }}
+        >
+          {t('objects.add')}
+        </button>
+      </div>
+      {objects.length === 0 && <p className="hint">{t('objects.hint')}</p>}
+      {objects.length > 0 && (
+        <div className="chips">
+          {objects.map((o, i) => (
+            <button
+              key={o.id}
+              className={o.id === selectedId ? 'chip active' : 'chip'}
+              onClick={() => {
+                useUi.getState().setSelection([])
+                useUi.getState().selectObject(o.id)
+              }}
+            >
+              {o.name || i + 1}
+            </button>
+          ))}
+        </div>
+      )}
+      {selected && state && (
+        <>
+          <div className="fields">
+            <label>
+              {t('objects.name')}
+              <input value={selected.name} onChange={(e) => st().updateObject(selected.id, { name: e.target.value })} />
+            </label>
+            <label>
+              {t('objects.color')}
+              <input type="color" value={selected.color} onChange={(e) => st().updateObject(selected.id, { color: e.target.value })} />
+            </label>
+            <label>
+              {t('objects.x')}
+              <NumField value={state.x} min={0} max={stage.width} step={0.5} onCommit={(v) => set({ x: v })} />
+            </label>
+            <label>
+              {t('objects.y')}
+              <NumField value={state.y} min={0} max={stage.depth} step={0.5} onCommit={(v) => set({ y: v })} />
+            </label>
+            <label>
+              {t('objects.w')}
+              <NumField value={state.w} min={0.2} max={MAX_STAGE} step={0.5} onCommit={(v) => set({ w: v })} />
+            </label>
+            <label>
+              {t('objects.h')}
+              <NumField value={state.h} min={0.2} max={MAX_STAGE} step={0.5} onCommit={(v) => set({ h: v })} />
+            </label>
+            <label>
+              {t('objects.rotation')}
+              <NumField value={state.rotation} min={-360} max={360} step={5} onCommit={(v) => set({ rotation: v })} />
+            </label>
+          </div>
+          <p className="hint">{t('objects.perFormation')}</p>
+          <button
+            className="danger"
+            onClick={() => {
+              st().removeObject(selected.id)
+              useUi.getState().selectObject(null)
+            }}
+          >
+            {t('objects.remove')}
+          </button>
+        </>
+      )}
     </section>
   )
 }

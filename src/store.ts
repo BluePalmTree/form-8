@@ -1,7 +1,16 @@
 import { produce } from 'immer'
 import { create } from 'zustand'
-import { clampPoint, createChoreography, createDancers, freeSpot, uid } from './model'
-import type { Choreography, Dancer, Formation, PathStyle, Point, Stage } from './types'
+import {
+  OBJECT_COLOR,
+  clampObjectState,
+  clampPoint,
+  createChoreography,
+  createDancers,
+  defaultObjectState,
+  freeSpot,
+  uid,
+} from './model'
+import type { Choreography, Dancer, Formation, ObjectState, PathStyle, Point, Stage, StageObject } from './types'
 
 const HISTORY_LIMIT = 100
 
@@ -24,6 +33,11 @@ interface ChoreoState {
   setTiming: (index: number, ids: string[], start: number, length: number, gap: number) => void
   clearTiming: (index: number, ids: string[]) => void
   addDancers: (n: number) => void
+  addObject: () => string
+  removeObject: (id: string) => void
+  updateObject: (id: string, patch: Partial<Omit<StageObject, 'id'>>) => void
+  /** Change the placement of an object in one formation. */
+  setObjectState: (index: number, id: string, patch: Partial<ObjectState>, record?: boolean) => void
   removeDancer: (id: string) => void
   updateDancer: (id: string, patch: Partial<Omit<Dancer, 'id'>>) => void
   duplicateFormation: (index: number) => void
@@ -83,6 +97,7 @@ export const useChoreo = create<ChoreoState>((set) => {
         d.stage = stage
         for (const f of d.formations) {
           for (const id of Object.keys(f.positions)) f.positions[id] = clampPoint(f.positions[id], stage)
+          for (const id of Object.keys(f.objectStates)) f.objectStates[id] = clampObjectState(f.objectStates[id], stage)
           f.controls = {}
         }
       }),
@@ -109,6 +124,34 @@ export const useChoreo = create<ChoreoState>((set) => {
       mutate((d) => {
         for (const id of ids) delete d.formations[index]?.timing[id]
       }),
+
+    addObject: () => {
+      const id = uid()
+      mutate((d) => {
+        d.objects.push({ id, name: '', color: OBJECT_COLOR })
+        for (const f of d.formations) f.objectStates[id] = defaultObjectState(d.stage)
+      })
+      return id
+    },
+
+    removeObject: (id) =>
+      mutate((d) => {
+        d.objects = d.objects.filter((o) => o.id !== id)
+        for (const f of d.formations) delete f.objectStates[id]
+      }),
+
+    updateObject: (id, patch) =>
+      mutate((d) => {
+        const o = d.objects.find((x) => x.id === id)
+        if (o) Object.assign(o, patch)
+      }, !('name' in patch && isTypingBurst(`object-${id}`))),
+
+    setObjectState: (index, id, patch, record = true) =>
+      mutate((d) => {
+        const f = d.formations[index]
+        const s = f?.objectStates[id]
+        if (s) f.objectStates[id] = clampObjectState({ ...s, ...patch }, d.stage)
+      }, record),
 
     addDancers: (n) =>
       mutate((d) => {
@@ -152,6 +195,7 @@ export const useChoreo = create<ChoreoState>((set) => {
           hold: src.hold,
           pathStyle: src.pathStyle,
           positions: { ...src.positions },
+          objectStates: { ...src.objectStates },
           timing: {},
           controls: {},
         })
@@ -207,6 +251,8 @@ interface UiState {
   multiSelect: boolean
   /** Dancer whose path is selected; its curve handle is drawn on top. */
   selectedPathId: string | null
+  /** Selected stage object (edited in the objects panel). */
+  selectedObjectId: string | null
   showPaths: boolean
   /** Grid snap in meters; 0 = off. */
   snap: number
@@ -216,6 +262,7 @@ interface UiState {
   setSelection: (ids: string[]) => void
   setMultiSelect: (v: boolean) => void
   selectPath: (id: string | null) => void
+  selectObject: (id: string | null) => void
   toggleSelect: (id: string) => void
   setShowPaths: (v: boolean) => void
   setSnap: (v: number) => void
@@ -230,12 +277,14 @@ export const useUi = create<UiState>((set) => ({
   selectedIds: [],
   multiSelect: false,
   selectedPathId: null,
+  selectedObjectId: null,
   showPaths: true,
   snap: 0.5,
   playing: false,
   time: 0,
   setIndex: (index) => set({ index, selectedPathId: null }),
-  setSelection: (selectedIds) => set({ selectedIds, selectedPathId: null }),
+  setSelection: (selectedIds) => set({ selectedIds, selectedPathId: null, selectedObjectId: null }),
+  selectObject: (selectedObjectId) => set({ selectedObjectId }),
   selectPath: (selectedPathId) => set({ selectedPathId }),
   setMultiSelect: (multiSelect) => set({ multiSelect }),
   toggleSelect: (id) =>

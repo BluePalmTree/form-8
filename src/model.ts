@@ -1,4 +1,4 @@
-import type { Choreography, Dancer, Formation, PathStyle, Point, Stage, Timing } from './types'
+import type { Choreography, Dancer, Formation, ObjectState, PathStyle, Point, Stage, StageObject, Timing } from './types'
 
 /** Dancer radius in meters. */
 export const DANCER_RADIUS = 0.32
@@ -44,6 +44,22 @@ export function columnLabel(i: number): string {
     n = Math.floor(n / 26) - 1
   } while (n >= 0)
   return out
+}
+
+export const OBJECT_COLOR = '#8d7b68'
+
+export function defaultObjectState(stage: Stage): ObjectState {
+  return { x: stage.width / 2, y: stage.depth / 2, w: 2, h: 1, rotation: 0 }
+}
+
+export function clampObjectState(o: ObjectState, stage: Stage): ObjectState {
+  return {
+    ...o,
+    x: clamp(o.x, 0, stage.width),
+    y: clamp(o.y, 0, stage.depth),
+    w: clamp(o.w, 0.2, MAX_STAGE),
+    h: clamp(o.h, 0.2, MAX_STAGE),
+  }
 }
 
 export const colorFor = (i: number) => hslToHex((i * 137.508) % 360, 65, 42)
@@ -115,10 +131,11 @@ export function createChoreography(name: string, dancerCount = 8): Choreography 
     hold: 2,
     pathStyle: 'straight',
     positions: Object.fromEntries(dancers.map((d, i) => [d.id, spots[i]])),
+    objectStates: {},
     timing: {},
     controls: {},
   }
-  return { id: uid(), name, stage, tempo: DEFAULT_TEMPO, dancers, formations: [formation], updatedAt: Date.now() }
+  return { id: uid(), name, stage, tempo: DEFAULT_TEMPO, dancers, objects: [], formations: [formation], updatedAt: Date.now() }
 }
 
 const lerp = (a: Point, b: Point, t: number): Point => ({
@@ -224,11 +241,38 @@ export function moveProgress(f: Formation, id: string, local: number): number {
   return ease(clamp((local - delay) / length, 0, 1))
 }
 
-/** Dancer positions and formation index (the target while moving) at a time in beats. */
-export function stateAt(c: Choreography, time: number): { index: number; positions: Record<string, Point> } {
+const lerpNum = (a: number, b: number, t: number) => a + (b - a) * t
+
+/** Objects glide between their placements in two formations (rotation interpolated linearly). */
+function objectsAt(c: Choreography, i: number, e: number): Record<string, ObjectState> {
+  const out: Record<string, ObjectState> = {}
+  for (const o of c.objects) {
+    const a = c.formations[i - 1].objectStates[o.id]
+    const b = c.formations[i].objectStates[o.id]
+    if (a && b) {
+      out[o.id] = {
+        x: lerpNum(a.x, b.x, e),
+        y: lerpNum(a.y, b.y, e),
+        w: lerpNum(a.w, b.w, e),
+        h: lerpNum(a.h, b.h, e),
+        rotation: lerpNum(a.rotation, b.rotation, e),
+      }
+    }
+  }
+  return out
+}
+
+export interface PlaybackState {
+  index: number
+  positions: Record<string, Point>
+  objects: Record<string, ObjectState>
+}
+
+/** Dancer positions, object placements and formation index (the target while moving) at a time in beats. */
+export function stateAt(c: Choreography, time: number): PlaybackState {
   const fs = c.formations
   let t = time
-  if (t < fs[0].hold) return { index: 0, positions: fs[0].positions }
+  if (t < fs[0].hold) return { index: 0, positions: fs[0].positions, objects: fs[0].objectStates }
   t -= fs[0].hold
   for (let i = 1; i < fs.length; i++) {
     const f = fs[i]
@@ -239,14 +283,14 @@ export function stateAt(c: Choreography, time: number): { index: number; positio
         const p1 = f.positions[d.id]
         positions[d.id] = pointAt(p0, p1, controlFor(c, i, d.id), moveProgress(f, d.id, t))
       }
-      return { index: i, positions }
+      return { index: i, positions, objects: objectsAt(c, i, ease(f.duration > 0 ? t / f.duration : 1)) }
     }
     t -= f.duration
-    if (t < f.hold) return { index: i, positions: f.positions }
+    if (t < f.hold) return { index: i, positions: f.positions, objects: f.objectStates }
     t -= f.hold
   }
   const last = fs.length - 1
-  return { index: last, positions: fs[last].positions }
+  return { index: last, positions: fs[last].positions, objects: fs[last].objectStates }
 }
 
 /** Validate and normalize imported JSON; throws if it is not a choreography. */
@@ -272,6 +316,12 @@ export function parseChoreography(data: unknown): Choreography {
     name: String(x?.name ?? ''),
     color: typeof x?.color === 'string' ? x.color : colorFor(i),
   }))
+  const objects: StageObject[] = (Array.isArray(d.objects) ? d.objects : []).map((o) => ({
+    id: String(o?.id ?? uid()),
+    name: String(o?.name ?? ''),
+    color: typeof o?.color === 'string' ? o.color : OBJECT_COLOR,
+  }))
+  let prevObjectStates: Record<string, ObjectState> = {}
   const formations: Formation[] = d.formations.map((f) => {
     const positions: Record<string, Point> = {}
     const controls: Record<string, Point> = {}
@@ -289,6 +339,17 @@ export function parseChoreography(data: unknown): Choreography {
         timing[dancer.id] = { delay: Math.max(0, Math.round(tm.delay)), length: Math.max(0, Math.round(tm.length)) }
       }
     }
+    // A missing placement falls back to the previous formation's, then to the stage center.
+    const objectStates: Record<string, ObjectState> = {}
+    for (const o of objects) {
+      const s = f?.objectStates?.[o.id]
+      const ok = s && [s.x, s.y, s.w, s.h].every((v) => Number.isFinite(v))
+      objectStates[o.id] = clampObjectState(
+        ok ? { x: s.x, y: s.y, w: s.w, h: s.h, rotation: Number.isFinite(s.rotation) ? s.rotation : 0 } : (prevObjectStates[o.id] ?? defaultObjectState(stage)),
+        stage,
+      )
+    }
+    prevObjectStates = objectStates
     return {
       id: String(f?.id ?? uid()),
       name: String(f?.name ?? ''),
@@ -299,6 +360,7 @@ export function parseChoreography(data: unknown): Choreography {
         ? (f.pathStyle as PathStyle)
         : 'straight',
       positions,
+      objectStates,
       timing,
       controls,
     }
@@ -309,6 +371,7 @@ export function parseChoreography(data: unknown): Choreography {
     stage,
     tempo: clamp(num(d.tempo, DEFAULT_TEMPO), MIN_TEMPO, MAX_TEMPO),
     dancers,
+    objects,
     formations,
     updatedAt: Date.now(),
   }

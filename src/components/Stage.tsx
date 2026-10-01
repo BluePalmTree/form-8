@@ -9,6 +9,7 @@ import { StageView } from './StageView'
 type Drag =
   | { kind: 'dancers'; id: string; offset: Point; starts: Record<string, Point>; moved: boolean; tapToggle: boolean }
   | { kind: 'handle'; id: string; offset: Point; moved: boolean }
+  | { kind: 'object'; id: string; offset: Point; moved: boolean }
   /** A tap or shift-click that only changes the selection. */
   | { kind: 'none' }
 
@@ -23,7 +24,7 @@ const isAdditive = (e: PointerEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 export function Stage() {
   const { t } = useTranslation()
   const choreo = useChoreo((s) => s.choreo)
-  const { index, selectedIds, selectedPathId, showPaths, snap, playing, time } = useUi()
+  const { index, selectedIds, selectedPathId, selectedObjectId, showPaths, snap, playing, time } = useUi()
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<Drag | null>(null)
   const marqueeRef = useRef<Marquee | null>(null)
@@ -46,6 +47,7 @@ export function Stage() {
     e.preventDefault()
     svgRef.current?.setPointerCapture(e.pointerId)
     const ui = useUi.getState()
+    ui.selectObject(null)
     // Touch has no Shift key: in multi-select mode a tap toggles, but a selected dancer can still be dragged.
     const tapMode = ui.multiSelect
     if (isAdditive(e) || (tapMode && !ui.selectedIds.includes(id))) {
@@ -76,6 +78,18 @@ export function Stage() {
     useUi.getState().setSelection([])
     useUi.getState().selectPath(id)
     drag.current = { kind: 'handle', id, offset: { x: 0, y: 0 }, moved: false }
+  }
+
+  const startObject = (id: string, e: PointerEvent) => {
+    if (playing) return
+    e.preventDefault()
+    svgRef.current?.setPointerCapture(e.pointerId)
+    const ui = useUi.getState()
+    ui.setSelection([])
+    ui.selectObject(id)
+    const s = choreo.formations[shownIndex].objectStates[id]
+    const p = toPoint(e)
+    drag.current = { kind: 'object', id, offset: { x: s.x - p.x, y: s.y - p.y }, moved: false }
   }
 
   // Selecting a path brings its curve handle to the front. Works with a tap as well as a click.
@@ -129,6 +143,9 @@ export function Stage() {
       )
       const moved = Object.fromEntries(Object.entries(d.starts).map(([id, s]) => [id, { x: s.x + dx, y: s.y + dy }]))
       st.setPositions(shownIndex, moved, false)
+    } else if (d.kind === 'object') {
+      const snapped = snapPoint(target, snap)
+      st.setObjectState(shownIndex, d.id, { x: snapped.x, y: snapped.y }, false)
     } else {
       const prev = st.choreo.formations[shownIndex - 1].positions[d.id]
       const cur = st.choreo.formations[shownIndex].positions[d.id]
@@ -177,11 +194,14 @@ export function Stage() {
         showPaths={showPaths}
         selectedIds={selectedIds}
         selectedPathId={selectedPathId}
+        selectedObjectId={selectedObjectId}
+        objectStates={anim?.objects}
         marquee={rect}
         audienceLabel={t('stage.audience')}
         onDancerDown={playing ? undefined : startDancer}
         onHandleDown={startHandle}
         onPathDown={startPath}
+        onObjectDown={playing ? undefined : startObject}
         onHandleReset={(id) => useChoreo.getState().setControl(shownIndex, id, null)}
         svgProps={{
           ref: svgRef,
