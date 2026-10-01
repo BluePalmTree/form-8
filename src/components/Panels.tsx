@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportJson, formationPng, pngFiles, shareOrDownload } from '../export'
-import { MAX_STAGE, MIN_STAGE, createChoreography, parseChoreography } from '../model'
+import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, createChoreography, parseChoreography, totalDuration } from '../model'
+import type { PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
 import { useChoreo, useUi } from '../store'
@@ -44,6 +45,8 @@ export function FormationBar() {
   const { t } = useTranslation()
   const label = useFormationName()
   const formations = useChoreo((s) => s.choreo.formations)
+  const tempo = useChoreo((s) => s.choreo.tempo)
+  const total = useChoreo((s) => totalDuration(s.choreo))
   const st = useChoreo.getState
   const { index, playing } = useUi()
   const setIndex = useUi.getState().setIndex
@@ -51,7 +54,16 @@ export function FormationBar() {
 
   return (
     <section className="panel">
-      <h2>{t('formation.title')}</h2>
+      <div className="panel-head">
+        <h2>{t('formation.title')}</h2>
+        <span className="hint">{t('formation.total', { count: total })}</span>
+      </div>
+      <div className="fields">
+        <label>
+          {t('formation.tempo')}
+          <NumField value={tempo} min={MIN_TEMPO} max={MAX_TEMPO} step={1} onCommit={(v) => st().setTempo(v)} />
+        </label>
+      </div>
       <div className="chips">
         {formations.map((x, i) => (
           <button
@@ -76,11 +88,19 @@ export function FormationBar() {
           </label>
           <label>
             {t('formation.duration')}
-            <NumField value={f.duration} min={0} max={60} step={0.5} disabled={index === 0} onCommit={(v) => st().updateFormation(index, { duration: v })} />
+            <NumField value={f.duration} min={0} max={256} step={1} disabled={index === 0} onCommit={(v) => st().updateFormation(index, { duration: v })} />
+          </label>
+          <label>
+            {t('formation.pathStyle')}
+            <select value={f.pathStyle} disabled={index === 0} onChange={(e) => st().setPathStyle(index, e.target.value as PathStyle)}>
+              <option value="straight">{t('pathStyle.straight')}</option>
+              <option value="out">{t('pathStyle.out')}</option>
+              <option value="in">{t('pathStyle.in')}</option>
+            </select>
           </label>
           <label>
             {t('formation.hold')}
-            <NumField value={f.hold} min={0} max={60} step={0.5} onCommit={(v) => st().updateFormation(index, { hold: v })} />
+            <NumField value={f.hold} min={0} max={256} step={1} onCommit={(v) => st().updateFormation(index, { hold: v })} />
           </label>
           <div className="row">
             <button disabled={playing || index === 0} onClick={() => { st().moveFormation(index, -1); setIndex(index - 1) }}>

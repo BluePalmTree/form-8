@@ -14,8 +14,10 @@ function usePlayback() {
     let raf = 0
     const startedAt = performance.now()
     const tick = (now: number) => {
-      const t = (now - startedAt) / 1000
-      const total = totalDuration(useChoreo.getState().choreo)
+      const { choreo } = useChoreo.getState()
+      // Playhead in beats ("Takte"): seconds × beats per minute / 60.
+      const t = ((now - startedAt) / 1000) * (choreo.tempo / 60)
+      const total = totalDuration(choreo)
       if (t >= total) {
         const ui = useUi.getState()
         ui.setIndex(useChoreo.getState().choreo.formations.length - 1)

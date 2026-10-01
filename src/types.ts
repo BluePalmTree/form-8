@@ -15,15 +15,19 @@ export interface Dancer {
   color: string
 }
 
+export type PathStyle = 'straight' | 'out' | 'in'
+
 export interface Formation {
   id: string
   name: string
-  /** Seconds the transition from the previous formation takes (ignored for the first). */
+  /** Beats ("Takte") the transition from the previous formation takes (ignored for the first). */
   duration: number
-  /** Seconds the dancers stand still in this formation. */
+  /** Beats the dancers stand still in this formation. */
   hold: number
   positions: Record<string, Point>
-  /** Optional Bézier control point per dancer for the path from the previous formation. */
+  /** Shape of the paths from the previous formation: straight, or bowed away from / toward the group's center. */
+  pathStyle: PathStyle
+  /** Manual Bézier control point per dancer; overrides pathStyle for that dancer. */
   controls: Record<string, Point>
 }
 
@@ -31,6 +35,8 @@ export interface Choreography {
   id: string
   name: string
   stage: Stage
+  /** Beats per minute; one "Takt" is one beat. */
+  tempo: number
   dancers: Dancer[]
   formations: Formation[]
   updatedAt: number

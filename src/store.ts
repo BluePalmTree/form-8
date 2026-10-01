@@ -1,7 +1,7 @@
 import { produce } from 'immer'
 import { create } from 'zustand'
 import { clampPoint, createChoreography, createDancers, freeSpot, uid } from './model'
-import type { Choreography, Dancer, Formation, Point, Stage } from './types'
+import type { Choreography, Dancer, Formation, PathStyle, Point, Stage } from './types'
 
 const HISTORY_LIMIT = 100
 
@@ -18,6 +18,8 @@ interface ChoreoState {
 
   setName: (name: string) => void
   setStage: (stage: Stage) => void
+  setTempo: (tempo: number) => void
+  setPathStyle: (index: number, style: PathStyle) => void
   addDancers: (n: number) => void
   removeDancer: (id: string) => void
   updateDancer: (id: string, patch: Partial<Omit<Dancer, 'id'>>) => void
@@ -72,6 +74,15 @@ export const useChoreo = create<ChoreoState>((set) => {
         }
       }),
 
+    setTempo: (tempo) => mutate((d) => void (d.tempo = tempo)),
+
+    // Changing the general path style discards manual curves of that transition.
+    setPathStyle: (index, style) =>
+      mutate((d) => {
+        d.formations[index].pathStyle = style
+        d.formations[index].controls = {}
+      }),
+
     addDancers: (n) =>
       mutate((d) => {
         const added = createDancers(n, d.dancers.length)
@@ -110,6 +121,7 @@ export const useChoreo = create<ChoreoState>((set) => {
           name: '',
           duration: src.duration,
           hold: src.hold,
+          pathStyle: src.pathStyle,
           positions: { ...src.positions },
           controls: {},
         })

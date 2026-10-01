@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local choreographies to discuss with Claude (not tracked)
+/choreos/

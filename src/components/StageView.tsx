@@ -1,5 +1,5 @@
 import type { PointerEvent, SVGProps } from 'react'
-import { DANCER_RADIUS, dancerLabel, endDirection, handlePos, pathD } from '../model'
+import { DANCER_RADIUS, controlFor, dancerLabel, endDirection, handlePos, pathD } from '../model'
 import type { Choreography, Point } from '../types'
 
 const MARGIN = 1
@@ -96,7 +96,7 @@ export function StageView({
           const p0 = prev.positions[d.id]
           const p1 = formation.positions[d.id]
           if (!p0 || !p1 || Math.hypot(p1.x - p0.x, p1.y - p0.y) < 0.05) return null
-          const c = formation.controls[d.id]
+          const c = controlFor(choreo, index, d.id)
           const dir = endDirection(p0, p1, c)
           const tip = { x: p1.x - dir.x * (R + 0.04), y: p1.y - dir.y * (R + 0.04) }
           const base = { x: tip.x - dir.x * 0.4, y: tip.y - dir.y * 0.4 }
@@ -142,7 +142,7 @@ export function StageView({
           const p0 = prev.positions[d.id]
           const p1 = formation.positions[d.id]
           if (!p0 || !p1 || Math.hypot(p1.x - p0.x, p1.y - p0.y) < 0.05) return null
-          const c = formation.controls[d.id]
+          const c = controlFor(choreo, index, d.id)
           const h = handlePos(p0, p1, c)
           return (
             <circle
@@ -150,7 +150,7 @@ export function StageView({
               cx={h.x}
               cy={h.y}
               r={0.17}
-              fill={c ? d.color : '#fff'}
+              fill={formation.controls[d.id] ? d.color : '#fff'}
               stroke={d.color}
               strokeWidth={0.06}
               style={{ cursor: 'move' }}

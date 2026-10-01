@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  controlFor,
   controlFromHandle,
   dancerLabel,
   createChoreography,
@@ -50,9 +51,11 @@ describe('playback', () => {
     name: '',
     duration: 2,
     hold: 1,
+    pathStyle: 'straight',
     positions: { [a.id]: { x: 8, y: 2 }, [b.id]: c.formations[0].positions[b.id] },
     controls: {},
   })
+  c.formations[0].hold = 1
   const start = c.formations[0].positions[a.id]
 
   it('sums hold and transition times', () => {
@@ -94,5 +97,45 @@ describe('dancerLabel', () => {
   it('uses two initials for first and last name', () => {
     expect(dancerLabel('Anna  Müller', 0)).toBe('AM')
     expect(dancerLabel('Anna Maria Müller', 0)).toBe('AM')
+  })
+})
+
+describe('path style', () => {
+  // Dancer A moves from the left of the center dancer to the top of it.
+  const make = (style: 'straight' | 'out' | 'in') => {
+    const c = createChoreography('t', 3)
+    const [a, b, center] = c.dancers
+    const f0 = c.formations[0]
+    f0.positions = { [a.id]: { x: 7, y: 3 }, [b.id]: { x: 9, y: 3 }, [center.id]: { x: 8, y: 3 } }
+    c.formations.push({
+      ...f0,
+      id: 'f1',
+      pathStyle: style,
+      positions: { [a.id]: { x: 8, y: 2 }, [b.id]: { x: 8, y: 4 }, [center.id]: { x: 8, y: 3 } },
+      controls: {},
+    })
+    return { c, a, center }
+  }
+
+  it('has no control point for straight paths or standing dancers', () => {
+    const { c, a } = make('straight')
+    expect(controlFor(c, 1, a.id)).toBeUndefined()
+    const out = make('out')
+    expect(controlFor(out.c, 1, out.center.id)).toBeUndefined()
+  })
+
+  it('bows away from or toward the group center', () => {
+    const dist = (p: { x: number; y: number }) => Math.hypot(p.x - 8, p.y - 3)
+    const out = make('out')
+    const inn = make('in')
+    const mid = (m: ReturnType<typeof make>) => handlePos(m.c.formations[0].positions[m.a.id], m.c.formations[1].positions[m.a.id], controlFor(m.c, 1, m.a.id))
+    expect(dist(mid(out))).toBeGreaterThan(dist({ x: 7.5, y: 2.5 }))
+    expect(dist(mid(inn))).toBeLessThan(dist({ x: 7.5, y: 2.5 }))
+  })
+
+  it('prefers a manual control point', () => {
+    const { c, a } = make('out')
+    c.formations[1].controls[a.id] = { x: 1, y: 1 }
+    expect(controlFor(c, 1, a.id)).toEqual({ x: 1, y: 1 })
   })
 })

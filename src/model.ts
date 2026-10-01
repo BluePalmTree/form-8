@@ -1,9 +1,14 @@
-import type { Choreography, Dancer, Formation, Point, Stage } from './types'
+import type { Choreography, Dancer, Formation, PathStyle, Point, Stage } from './types'
 
 /** Dancer radius in meters. */
 export const DANCER_RADIUS = 0.32
 export const MIN_STAGE = 4
 export const MAX_STAGE = 60
+export const MIN_TEMPO = 20
+export const MAX_TEMPO = 300
+export const DEFAULT_TEMPO = 120
+/** How far a bowed path bulges, as a fraction of the path length. */
+export const PATH_BULGE = 0.2
 
 export const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -94,12 +99,13 @@ export function createChoreography(name: string, dancerCount = 8): Choreography 
   const formation: Formation = {
     id: uid(),
     name: '',
-    duration: 2,
-    hold: 1,
+    duration: 4,
+    hold: 2,
+    pathStyle: 'straight',
     positions: Object.fromEntries(dancers.map((d, i) => [d.id, spots[i]])),
     controls: {},
   }
-  return { id: uid(), name, stage, dancers, formations: [formation], updatedAt: Date.now() }
+  return { id: uid(), name, stage, tempo: DEFAULT_TEMPO, dancers, formations: [formation], updatedAt: Date.now() }
 }
 
 const lerp = (a: Point, b: Point, t: number): Point => ({
@@ -142,13 +148,45 @@ export function endDirection(p0: Point, p1: Point, c?: Point): Point {
   return { x: dx / len, y: dy / len }
 }
 
+/**
+ * Control point of a dancer's path into formation `i`: the manual one if set, otherwise derived
+ * from the formation's path style (bowed away from / toward the center of the group).
+ */
+export function controlFor(c: Choreography, i: number, id: string): Point | undefined {
+  const f = c.formations[i]
+  const manual = f.controls[id]
+  if (manual || i === 0 || f.pathStyle === 'straight') return manual
+  const prev = c.formations[i - 1]
+  const p0 = prev.positions[id]
+  const p1 = f.positions[id]
+  if (!p0 || !p1) return undefined
+  const chord = Math.hypot(p1.x - p0.x, p1.y - p0.y)
+  if (chord < 0.05) return undefined
+  const all = Object.values(prev.positions)
+  const cx = all.reduce((s, p) => s + p.x, 0) / all.length
+  const cy = all.reduce((s, p) => s + p.y, 0) / all.length
+  const mx = (p0.x + p1.x) / 2
+  const my = (p0.y + p1.y) / 2
+  let dx = mx - cx
+  let dy = my - cy
+  let len = Math.hypot(dx, dy)
+  if (len < 0.05) {
+    // The path passes the center: bulge to the right of the travel direction instead.
+    dx = -(p1.y - p0.y)
+    dy = p1.x - p0.x
+    len = chord
+  }
+  const k = ((f.pathStyle === 'out' ? 1 : -1) * PATH_BULGE * chord) / len
+  return controlFromHandle(p0, p1, { x: mx + dx * k, y: my + dy * k })
+}
+
 export const ease = (t: number) => t * t * (3 - 2 * t)
 
 export function totalDuration(c: Choreography): number {
   return c.formations.reduce((sum, f, i) => sum + f.hold + (i > 0 ? f.duration : 0), 0)
 }
 
-/** Dancer positions and formation index (the target while moving) at a point in time. */
+/** Dancer positions and formation index (the target while moving) at a time in beats. */
 export function stateAt(c: Choreography, time: number): { index: number; positions: Record<string, Point> } {
   const fs = c.formations
   let t = time
@@ -162,7 +200,7 @@ export function stateAt(c: Choreography, time: number): { index: number; positio
       for (const d of c.dancers) {
         const p0 = fs[i - 1].positions[d.id]
         const p1 = f.positions[d.id]
-        positions[d.id] = pointAt(p0, p1, f.controls[d.id], e)
+        positions[d.id] = pointAt(p0, p1, controlFor(c, i, d.id), e)
       }
       return { index: i, positions }
     }
@@ -212,11 +250,22 @@ export function parseChoreography(data: unknown): Choreography {
     return {
       id: String(f?.id ?? uid()),
       name: String(f?.name ?? ''),
-      duration: Math.max(0, num(f?.duration, 2)),
-      hold: Math.max(0, num(f?.hold, 1)),
+      duration: Math.max(0, num(f?.duration, 4)),
+      hold: Math.max(0, num(f?.hold, 0)),
+      pathStyle: (['straight', 'out', 'in'] as PathStyle[]).includes(f?.pathStyle as PathStyle)
+        ? (f.pathStyle as PathStyle)
+        : 'straight',
       positions,
       controls,
     }
   })
-  return { id: uid(), name: String(d.name ?? ''), stage, dancers, formations, updatedAt: Date.now() }
+  return {
+    id: uid(),
+    name: String(d.name ?? ''),
+    stage,
+    tempo: clamp(num(d.tempo, DEFAULT_TEMPO), MIN_TEMPO, MAX_TEMPO),
+    dancers,
+    formations,
+    updatedAt: Date.now(),
+  }
 }
