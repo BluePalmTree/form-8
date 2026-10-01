@@ -273,3 +273,10 @@ h2 {
   font-size: 0.8rem;
   font-weight: 700;
 }
+
+.footer {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}

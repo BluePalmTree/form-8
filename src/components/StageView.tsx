@@ -1,5 +1,5 @@
 import type { PointerEvent, SVGProps } from 'react'
-import { DANCER_RADIUS, endDirection, handlePos, pathD } from '../model'
+import { DANCER_RADIUS, dancerLabel, endDirection, handlePos, pathD } from '../model'
 import type { Choreography, Point } from '../types'
 
 const MARGIN = 1
@@ -119,7 +119,7 @@ export function StageView({
         const p = pos[d.id]
         if (!p) return null
         const selected = selectedId === d.id
-        const idx = dancers.indexOf(d) + 1
+        const label = dancerLabel(d.name, dancers.indexOf(d))
         return (
           <g
             key={d.id}
@@ -128,8 +128,8 @@ export function StageView({
             style={interactive ? { cursor: 'grab' } : undefined}
           >
             <circle r={R} fill={d.color} stroke={selected ? '#111' : '#fff'} strokeWidth={selected ? 0.09 : 0.06} />
-            <text fontSize={idx > 99 ? 0.22 : idx > 9 ? 0.3 : 0.38} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill="#fff" pointerEvents="none">
-              {idx}
+            <text fontSize={label.length > 2 ? 0.22 : label.length > 1 ? 0.3 : 0.38} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill="#fff" pointerEvents="none">
+              {label}
             </text>
             {d.name && (
               <text y={R + 0.28} fontSize={0.3} textAnchor="middle" fill="#222" pointerEvents="none">

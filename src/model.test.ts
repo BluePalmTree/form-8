@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   controlFromHandle,
+  dancerLabel,
   createChoreography,
   defaultSpots,
   handlePos,
@@ -79,5 +80,19 @@ describe('import', () => {
 
   it('rejects garbage', () => {
     expect(() => parseChoreography({})).toThrow()
+  })
+})
+
+describe('dancerLabel', () => {
+  it('uses the number without a name', () => {
+    expect(dancerLabel('', 4)).toBe('5')
+    expect(dancerLabel('   ', 0)).toBe('1')
+  })
+  it('uses one initial for a single name', () => {
+    expect(dancerLabel('anna', 0)).toBe('A')
+  })
+  it('uses two initials for first and last name', () => {
+    expect(dancerLabel('Anna  Müller', 0)).toBe('AM')
+    expect(dancerLabel('Anna Maria Müller', 0)).toBe('AM')
   })
 })

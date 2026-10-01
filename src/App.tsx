@@ -134,6 +134,7 @@ export default function App() {
           <LibraryPanel />
         </aside>
       </main>
+      <footer className="footer">v{__APP_VERSION__}</footer>
     </div>
   )
 }

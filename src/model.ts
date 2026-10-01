@@ -20,6 +20,16 @@ export function hslToHex(h: number, s: number, l: number): string {
   return `#${hex(f(0))}${hex(f(8))}${hex(f(4))}`
 }
 
+/** Label inside the dancer circle: initials of the first two name parts, else the number. */
+export function dancerLabel(name: string, index: number): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return String(index + 1)
+  return parts
+    .slice(0, 2)
+    .map((p) => Array.from(p)[0].toUpperCase())
+    .join('')
+}
+
 export const colorFor = (i: number) => hslToHex((i * 137.508) % 360, 65, 42)
 
 export const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
