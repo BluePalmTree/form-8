@@ -20,6 +20,9 @@ interface ChoreoState {
   setStage: (stage: Stage) => void
   setTempo: (tempo: number) => void
   setPathStyle: (index: number, style: PathStyle) => void
+  /** Staggered start: the i-th id starts `start + i * gap` beats in and walks for `length` beats. */
+  setTiming: (index: number, ids: string[], start: number, length: number, gap: number) => void
+  clearTiming: (index: number, ids: string[]) => void
   addDancers: (n: number) => void
   removeDancer: (id: string) => void
   updateDancer: (id: string, patch: Partial<Omit<Dancer, 'id'>>) => void
@@ -93,6 +96,20 @@ export const useChoreo = create<ChoreoState>((set) => {
         d.formations[index].controls = {}
       }),
 
+    setTiming: (index, ids, start, length, gap) =>
+      mutate((d) => {
+        const f = d.formations[index]
+        if (!f) return
+        ids.forEach((id, i) => {
+          if (f.positions[id]) f.timing[id] = { delay: start + i * gap, length }
+        })
+      }),
+
+    clearTiming: (index, ids) =>
+      mutate((d) => {
+        for (const id of ids) delete d.formations[index]?.timing[id]
+      }),
+
     addDancers: (n) =>
       mutate((d) => {
         const added = createDancers(n, d.dancers.length)
@@ -114,6 +131,7 @@ export const useChoreo = create<ChoreoState>((set) => {
         for (const f of d.formations) {
           delete f.positions[id]
           delete f.controls[id]
+          delete f.timing[id]
         }
       }),
 
@@ -134,6 +152,7 @@ export const useChoreo = create<ChoreoState>((set) => {
           hold: src.hold,
           pathStyle: src.pathStyle,
           positions: { ...src.positions },
+          timing: {},
           controls: {},
         })
       }),

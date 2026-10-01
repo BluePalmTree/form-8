@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportJson, formationPng, pngFiles, shareOrDownload } from '../export'
-import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, arrivalTime, createChoreography, parseChoreography, totalDuration } from '../model'
+import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, totalDuration } from '../model'
 import type { PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
@@ -100,6 +100,74 @@ function Timeline() {
   )
 }
 
+/** Staggered starts for the selected dancers, in the order they were selected. */
+function TimingSection({ index }: { index: number }) {
+  const { t } = useTranslation()
+  const choreo = useChoreo((s) => s.choreo)
+  const selectedIds = useUi((s) => s.selectedIds)
+  const f = choreo.formations[index]
+  const ids = selectedIds.filter((id) => f.positions[id])
+  const [start, setStart] = useState(0)
+  const [length, setLength] = useState(f.duration)
+  const [gap, setGap] = useState(0)
+  const st = useChoreo.getState
+
+  const needed = start + Math.max(ids.length - 1, 0) * gap + length
+  const timed = choreo.dancers.map((d, i) => ({ d, i })).filter(({ d }) => f.timing[d.id])
+
+  return (
+    <div className="timing">
+      <h3>{t('timing.title')}</h3>
+      {ids.length === 0 ? (
+        <p className="hint">{t('timing.hint')}</p>
+      ) : (
+        <>
+          <div className="fields">
+            <label>
+              {t('timing.start')}
+              <NumField value={start} min={0} max={256} integer onCommit={setStart} />
+            </label>
+            <label>
+              {t('timing.length')}
+              <NumField value={length} min={0} max={256} integer onCommit={setLength} />
+            </label>
+            <label>
+              {t('timing.gap')}
+              <NumField value={gap} min={0} max={256} integer onCommit={setGap} />
+            </label>
+          </div>
+          <p className={needed > f.duration ? 'hint error' : 'hint'}>
+            {t('timing.needed', { count: needed, duration: f.duration })}
+          </p>
+          <div className="row">
+            <button className="primary" onClick={() => st().setTiming(index, ids, start, length, gap)}>
+              {t('timing.apply', { count: ids.length })}
+            </button>
+            <button disabled={!ids.some((id) => f.timing[id])} onClick={() => st().clearTiming(index, ids)}>
+              {t('timing.reset')}
+            </button>
+          </div>
+        </>
+      )}
+      {timed.length > 0 && (
+        <ul className="timed">
+          {timed.map(({ d, i }) => {
+            const e = effectiveTiming(f, d.id)
+            return (
+              <li key={d.id}>
+                <span className="num" style={{ background: d.color }}>
+                  {dancerLabel(d.name, i)}
+                </span>
+                {t('timing.entry', { from: e.delay, to: e.delay + e.length })}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export function FormationBar() {
   const { t } = useTranslation()
   const label = useFormationName()
@@ -159,6 +227,11 @@ export function FormationBar() {
             {t('formation.hold')}
             <NumField value={f.hold} min={0} max={256} integer onCommit={(v) => st().updateFormation(index, { hold: v })} />
           </label>
+          {index > 0 && (
+            <div className="wide">
+              <TimingSection key={f.id} index={index} />
+            </div>
+          )}
           <label className="wide">
             {t('formation.note')}
             <textarea

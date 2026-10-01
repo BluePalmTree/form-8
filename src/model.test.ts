@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   arrivalTime,
   columnLabel,
+  effectiveTiming,
+  moveProgress,
   controlFor,
   controlFromHandle,
   dancerLabel,
@@ -56,6 +58,7 @@ describe('playback', () => {
     duration: 2,
     hold: 1,
     pathStyle: 'straight',
+    timing: {},
     positions: { [a.id]: { x: 8, y: 2 }, [b.id]: c.formations[0].positions[b.id] },
     controls: {},
   })
@@ -184,5 +187,48 @@ describe('columnLabel', () => {
     expect(columnLabel(25)).toBe('Z')
     expect(columnLabel(26)).toBe('AA')
     expect(columnLabel(60)).toBe('BI')
+  })
+})
+
+describe('per-dancer timing', () => {
+  const make = () => {
+    const c = createChoreography('t', 2)
+    const [a, b] = c.dancers
+    const f0 = c.formations[0]
+    f0.hold = 0
+    c.formations.push({
+      ...f0,
+      id: 'f1',
+      duration: 10,
+      hold: 0,
+      timing: { [b.id]: { delay: 4, length: 4 } },
+      positions: { [a.id]: { x: f0.positions[a.id].x + 4, y: f0.positions[a.id].y }, [b.id]: { x: f0.positions[b.id].x + 4, y: f0.positions[b.id].y } },
+      controls: {},
+    })
+    return { c, a, b }
+  }
+
+  it('defaults to moving the whole transition', () => {
+    const { c, a } = make()
+    expect(effectiveTiming(c.formations[1], a.id)).toEqual({ delay: 0, length: 10 })
+  })
+
+  it('clamps the walking time to the transition', () => {
+    const { c, b } = make()
+    c.formations[1].timing[b.id] = { delay: 8, length: 10 }
+    expect(effectiveTiming(c.formations[1], b.id)).toEqual({ delay: 8, length: 2 })
+  })
+
+  it('keeps a delayed dancer in place, then walks, then waits', () => {
+    const { c, a, b } = make()
+    const f = c.formations[1]
+    expect(moveProgress(f, b.id, 3)).toBe(0)
+    expect(moveProgress(f, b.id, 6)).toBeCloseTo(0.5)
+    expect(moveProgress(f, b.id, 9)).toBe(1)
+    // The other dancer is unaffected and still moves from the start.
+    expect(moveProgress(f, a.id, 5)).toBeCloseTo(0.5)
+    const start = c.formations[0].positions[b.id]
+    expect(stateAt(c, 3).positions[b.id]).toEqual(start)
+    expect(stateAt(c, 6).positions[b.id].x).toBeCloseTo(start.x + 2)
   })
 })

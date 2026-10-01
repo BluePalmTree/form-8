@@ -1,4 +1,4 @@
-import type { Choreography, Dancer, Formation, PathStyle, Point, Stage } from './types'
+import type { Choreography, Dancer, Formation, PathStyle, Point, Stage, Timing } from './types'
 
 /** Dancer radius in meters. */
 export const DANCER_RADIUS = 0.32
@@ -115,6 +115,7 @@ export function createChoreography(name: string, dancerCount = 8): Choreography 
     hold: 2,
     pathStyle: 'straight',
     positions: Object.fromEntries(dancers.map((d, i) => [d.id, spots[i]])),
+    timing: {},
     controls: {},
   }
   return { id: uid(), name, stage, tempo: DEFAULT_TEMPO, dancers, formations: [formation], updatedAt: Date.now() }
@@ -208,6 +209,21 @@ export function arrivalTime(c: Choreography, i: number): number {
   return t
 }
 
+/** Effective delay and walking time of a dancer in a transition (clamped to the transition). */
+export function effectiveTiming(f: Formation, id: string): Timing {
+  const t = f.timing[id]
+  const delay = clamp(t?.delay ?? 0, 0, f.duration)
+  const length = Math.min(t?.length ?? f.duration - delay, f.duration - delay)
+  return { delay, length: Math.max(0, length) }
+}
+
+/** Eased progress (0..1) of a dancer, `local` beats into the transition. */
+export function moveProgress(f: Formation, id: string, local: number): number {
+  const { delay, length } = effectiveTiming(f, id)
+  if (length <= 0) return local >= delay ? 1 : 0
+  return ease(clamp((local - delay) / length, 0, 1))
+}
+
 /** Dancer positions and formation index (the target while moving) at a time in beats. */
 export function stateAt(c: Choreography, time: number): { index: number; positions: Record<string, Point> } {
   const fs = c.formations
@@ -217,12 +233,11 @@ export function stateAt(c: Choreography, time: number): { index: number; positio
   for (let i = 1; i < fs.length; i++) {
     const f = fs[i]
     if (t < f.duration) {
-      const e = ease(f.duration > 0 ? t / f.duration : 1)
       const positions: Record<string, Point> = {}
       for (const d of c.dancers) {
         const p0 = fs[i - 1].positions[d.id]
         const p1 = f.positions[d.id]
-        positions[d.id] = pointAt(p0, p1, controlFor(c, i, d.id), e)
+        positions[d.id] = pointAt(p0, p1, controlFor(c, i, d.id), moveProgress(f, d.id, t))
       }
       return { index: i, positions }
     }
@@ -260,6 +275,7 @@ export function parseChoreography(data: unknown): Choreography {
   const formations: Formation[] = d.formations.map((f) => {
     const positions: Record<string, Point> = {}
     const controls: Record<string, Point> = {}
+    const timing: Record<string, Timing> = {}
     for (const dancer of dancers) {
       const p = f?.positions?.[dancer.id]
       positions[dancer.id] =
@@ -268,6 +284,10 @@ export function parseChoreography(data: unknown): Choreography {
           : freeSpot(stage, Object.values(positions))
       const c = f?.controls?.[dancer.id]
       if (c && Number.isFinite(c.x) && Number.isFinite(c.y)) controls[dancer.id] = c
+      const tm = f?.timing?.[dancer.id]
+      if (tm && Number.isFinite(tm.delay) && Number.isFinite(tm.length)) {
+        timing[dancer.id] = { delay: Math.max(0, Math.round(tm.delay)), length: Math.max(0, Math.round(tm.length)) }
+      }
     }
     return {
       id: String(f?.id ?? uid()),
@@ -279,6 +299,7 @@ export function parseChoreography(data: unknown): Choreography {
         ? (f.pathStyle as PathStyle)
         : 'straight',
       positions,
+      timing,
       controls,
     }
   })

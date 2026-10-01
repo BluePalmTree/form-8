@@ -342,3 +342,34 @@ textarea {
 .fields .wide {
   grid-column: 1 / -1;
 }
+
+.timing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.timing h3 {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.timed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.timed li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

@@ -15,6 +15,12 @@ export interface Dancer {
   color: string
 }
 
+/** When a dancer moves within a transition: starts `delay` beats in and walks for `length` beats. */
+export interface Timing {
+  delay: number
+  length: number
+}
+
 export type PathStyle = 'straight' | 'out' | 'in'
 
 export interface Formation {
@@ -29,6 +35,8 @@ export interface Formation {
   positions: Record<string, Point>
   /** Shape of the paths from the previous formation: straight, or bowed away from / toward the group's center. */
   pathStyle: PathStyle
+  /** Per-dancer start delay and walking time within the transition; absent = moves the whole transition. */
+  timing: Record<string, Timing>
   /** Manual Bézier control point per dancer; overrides pathStyle for that dancer. */
   controls: Record<string, Point>
 }
