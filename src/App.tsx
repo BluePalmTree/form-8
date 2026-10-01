@@ -13,10 +13,11 @@ function usePlayback() {
     if (!playing) return
     let raf = 0
     const startedAt = performance.now()
+    const startBeat = useUi.getState().time
     const tick = (now: number) => {
       const { choreo } = useChoreo.getState()
       // Playhead in beats ("Takte"): seconds × beats per minute / 60.
-      const t = ((now - startedAt) / 1000) * (choreo.tempo / 60)
+      const t = startBeat + ((now - startedAt) / 1000) * (choreo.tempo / 60)
       const total = totalDuration(choreo)
       if (t >= total) {
         const ui = useUi.getState()

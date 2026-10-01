@@ -18,10 +18,15 @@ export function PlaybackBar() {
   const count = useChoreo((s) => s.choreo.formations.length)
   const { index, playing, showPaths, multiSelect } = useUi()
   const ui = useUi.getState
+  // Play from the selected formation; from the beginning if it is the last one (nothing left to play).
+  const startBeat = () => {
+    const { choreo } = useChoreo.getState()
+    return index >= count - 1 ? 0 : arrivalTime(choreo, index)
+  }
   const go = (i: number) => ui().setIndex(Math.max(0, Math.min(count - 1, i)))
   return (
     <div className="bar">
-      <button onClick={() => (playing ? ui().stop() : ui().play())} className="primary">
+      <button onClick={() => (playing ? ui().stop() : ui().play(startBeat()))} className="primary">
         {playing ? `■ ${t('play.pause')}` : `▶ ${t('play.play')}`}
       </button>
       <button disabled={playing || index === 0} onClick={() => go(index - 1)} aria-label={t('play.prev')} title={t('play.prev')}>

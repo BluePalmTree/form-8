@@ -23,7 +23,7 @@ const isAdditive = (e: PointerEvent) => e.shiftKey || e.ctrlKey || e.metaKey
 export function Stage() {
   const { t } = useTranslation()
   const choreo = useChoreo((s) => s.choreo)
-  const { index, selectedIds, showPaths, snap, playing, time } = useUi()
+  const { index, selectedIds, selectedPathId, showPaths, snap, playing, time } = useUi()
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<Drag | null>(null)
   const marqueeRef = useRef<Marquee | null>(null)
@@ -73,8 +73,19 @@ export function Stage() {
     if (playing) return
     e.preventDefault()
     svgRef.current?.setPointerCapture(e.pointerId)
-    useUi.getState().setSelection([id])
+    useUi.getState().setSelection([])
+    useUi.getState().selectPath(id)
     drag.current = { kind: 'handle', id, offset: { x: 0, y: 0 }, moved: false }
+  }
+
+  // Selecting a path brings its curve handle to the front. Works with a tap as well as a click.
+  const startPath = (id: string, e: PointerEvent) => {
+    if (playing) return
+    e.preventDefault()
+    svgRef.current?.setPointerCapture(e.pointerId)
+    useUi.getState().setSelection([])
+    useUi.getState().selectPath(id)
+    drag.current = { kind: 'none' }
   }
 
   const startMarquee = (e: PointerEvent) => {
@@ -165,10 +176,12 @@ export function Stage() {
         positions={anim?.positions}
         showPaths={showPaths}
         selectedIds={selectedIds}
+        selectedPathId={selectedPathId}
         marquee={rect}
         audienceLabel={t('stage.audience')}
         onDancerDown={playing ? undefined : startDancer}
         onHandleDown={startHandle}
+        onPathDown={startPath}
         onHandleReset={(id) => useChoreo.getState().setControl(shownIndex, id, null)}
         svgProps={{
           ref: svgRef,

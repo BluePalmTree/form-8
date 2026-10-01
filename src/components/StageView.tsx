@@ -1,6 +1,6 @@
 import type { PointerEvent, SVGProps } from 'react'
 import { DANCER_RADIUS, controlFor, dancerLabel, endDirection, handlePos, pathD } from '../model'
-import type { Choreography, Point } from '../types'
+import type { Choreography, Dancer, Point } from '../types'
 
 const MARGIN = 1
 const TITLE_SPACE = 0.9
@@ -20,6 +20,7 @@ interface Props {
   positions?: Record<string, Point>
   showPaths: boolean
   selectedIds?: string[]
+  selectedPathId?: string | null
   /** Selection rectangle in stage coordinates. */
   marquee?: { x: number; y: number; w: number; h: number } | null
   audienceLabel: string
@@ -28,6 +29,7 @@ interface Props {
   pixelWidth?: number
   onDancerDown?: (id: string, e: PointerEvent) => void
   onHandleDown?: (id: string, e: PointerEvent) => void
+  onPathDown?: (id: string, e: PointerEvent) => void
   onHandleReset?: (id: string) => void
   svgProps?: SVGProps<SVGSVGElement>
 }
@@ -42,12 +44,14 @@ export function StageView({
   positions,
   showPaths,
   selectedIds,
+  selectedPathId,
   marquee,
   audienceLabel,
   title,
   pixelWidth,
   onDancerDown,
   onHandleDown,
+  onPathDown,
   onHandleReset,
   svgProps,
 }: Props) {
@@ -62,6 +66,27 @@ export function StageView({
   const gridLines: number[][] = []
   for (let x = 1; x < stage.width; x++) gridLines.push([x, 0, x, stage.depth])
   for (let y = 1; y < stage.depth; y++) gridLines.push([0, y, stage.width, y])
+
+  const showHandles = interactive && showPaths && !!prev
+  // Path handles sit behind the dancers, except the one of the selected path, which is drawn on top.
+  const handleOf = (d: Dancer) => {
+    const p0 = prev?.positions[d.id]
+    const p1 = formation.positions[d.id]
+    if (!p0 || !p1 || Math.hypot(p1.x - p0.x, p1.y - p0.y) < 0.05) return null
+    const h = handlePos(p0, p1, controlFor(choreo, index, d.id))
+    return (
+      <g
+        key={d.id}
+        transform={`translate(${h.x} ${h.y})`}
+        style={{ cursor: 'move' }}
+        onPointerDown={(e) => onHandleDown?.(d.id, e)}
+        onDoubleClick={() => onHandleReset?.(d.id)}
+      >
+        <circle r={HANDLE_HIT_RADIUS} fill="transparent" />
+        <circle r={0.17} fill={formation.controls[d.id] ? d.color : '#fff'} stroke={d.color} strokeWidth={0.06} />
+      </g>
+    )
+  }
 
   return (
     <svg
@@ -115,12 +140,23 @@ export function StageView({
           return (
             <g key={d.id}>
               <circle cx={p0.x} cy={p0.y} r={R} fill={d.color} fillOpacity={0.2} stroke={d.color} strokeWidth={0.04} strokeDasharray="0.1 0.08" />
-              <path d={pathD(p0, p1, c)} fill="none" stroke={d.color} strokeWidth={0.08} strokeOpacity={0.85} strokeLinecap="round" />
+              <path d={pathD(p0, p1, c)} fill="none" stroke={d.color} strokeWidth={d.id === selectedPathId ? 0.14 : 0.08} strokeOpacity={0.85} strokeLinecap="round" />
+              {interactive && (
+                <path
+                  d={pathD(p0, p1, c)}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={0.6}
+                  style={{ cursor: 'pointer' }}
+                  onPointerDown={(e) => onPathDown?.(d.id, e)}
+                />
+              )}
               <polygon points={arrow} fill={d.color} />
             </g>
           )
         })}
 
+      {showHandles && dancers.filter((d) => d.id !== selectedPathId).map(handleOf)}
       {dancers.map((d) => {
         const p = pos[d.id]
         if (!p) return null
@@ -142,28 +178,8 @@ export function StageView({
         )
       })}
 
-      {interactive &&
-        showPaths &&
-        prev &&
-        dancers.map((d) => {
-          const p0 = prev.positions[d.id]
-          const p1 = formation.positions[d.id]
-          if (!p0 || !p1 || Math.hypot(p1.x - p0.x, p1.y - p0.y) < 0.05) return null
-          const c = controlFor(choreo, index, d.id)
-          const h = handlePos(p0, p1, c)
-          return (
-            <g
-              key={d.id}
-              transform={`translate(${h.x} ${h.y})`}
-              style={{ cursor: 'move' }}
-              onPointerDown={(e) => onHandleDown?.(d.id, e)}
-              onDoubleClick={() => onHandleReset?.(d.id)}
-            >
-              <circle r={HANDLE_HIT_RADIUS} fill="transparent" />
-              <circle r={0.17} fill={formation.controls[d.id] ? d.color : '#fff'} stroke={d.color} strokeWidth={0.06} />
-            </g>
-          )
-        })}
+      {showHandles && dancers.filter((d) => d.id === selectedPathId).map(handleOf)}
+
       {marquee && (
         <rect
           x={marquee.x}

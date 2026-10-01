@@ -175,6 +175,8 @@ interface UiState {
   selectedIds: string[]
   /** Tap mode for touch screens: taps add or remove dancers instead of replacing the selection. */
   multiSelect: boolean
+  /** Dancer whose path is selected; its curve handle is drawn on top. */
+  selectedPathId: string | null
   showPaths: boolean
   /** Grid snap in meters; 0 = off. */
   snap: number
@@ -183,10 +185,12 @@ interface UiState {
   setIndex: (i: number) => void
   setSelection: (ids: string[]) => void
   setMultiSelect: (v: boolean) => void
+  selectPath: (id: string | null) => void
   toggleSelect: (id: string) => void
   setShowPaths: (v: boolean) => void
   setSnap: (v: number) => void
-  play: () => void
+  /** Start playback at the given beat. */
+  play: (startBeat: number) => void
   stop: () => void
   setTime: (t: number) => void
 }
@@ -195,12 +199,14 @@ export const useUi = create<UiState>((set) => ({
   index: 0,
   selectedIds: [],
   multiSelect: false,
+  selectedPathId: null,
   showPaths: true,
   snap: 0.5,
   playing: false,
   time: 0,
-  setIndex: (index) => set({ index }),
-  setSelection: (selectedIds) => set({ selectedIds }),
+  setIndex: (index) => set({ index, selectedPathId: null }),
+  setSelection: (selectedIds) => set({ selectedIds, selectedPathId: null }),
+  selectPath: (selectedPathId) => set({ selectedPathId }),
   setMultiSelect: (multiSelect) => set({ multiSelect }),
   toggleSelect: (id) =>
     set((s) => ({
@@ -208,7 +214,7 @@ export const useUi = create<UiState>((set) => ({
     })),
   setShowPaths: (showPaths) => set({ showPaths }),
   setSnap: (snap) => set({ snap }),
-  play: () => set({ playing: true, time: 0 }),
+  play: (startBeat) => set({ playing: true, time: startBeat }),
   stop: () => set({ playing: false }),
   setTime: (time) => set({ time }),
 }))
