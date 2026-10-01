@@ -43,6 +43,11 @@ interface ChoreoState {
   duplicateFormation: (index: number) => void
   removeFormation: (index: number) => void
   moveFormation: (index: number, dir: -1 | 1) => void
+  /** Begin a new part at this formation. */
+  startPartAt: (index: number) => void
+  /** Remove the part boundary in front of this formation. */
+  mergePartWithPrevious: (index: number) => void
+  renamePart: (index: number, name: string) => void
   updateFormation: (index: number, patch: Partial<Pick<Formation, 'name' | 'note' | 'duration' | 'hold'>>) => void
   setPositions: (index: number, positions: Record<string, Point>, record?: boolean) => void
   setControl: (index: number, id: string, c: Point | null, record?: boolean) => void
@@ -191,6 +196,7 @@ export const useChoreo = create<ChoreoState>((set) => {
           id: uid(),
           name: '',
           note: '',
+          part: null,
           duration: src.duration,
           hold: src.hold,
           pathStyle: src.pathStyle,
@@ -204,21 +210,47 @@ export const useChoreo = create<ChoreoState>((set) => {
     removeFormation: (index) =>
       mutate((d) => {
         if (d.formations.length <= 1) return
-        d.formations.splice(index, 1)
-        // The path into the formation that followed no longer matches its predecessor.
-        if (d.formations[index]) d.formations[index].controls = {}
+        const [removed] = d.formations.splice(index, 1)
+        const next = d.formations[index]
+        if (next) {
+          // The path into the formation that followed no longer matches its predecessor.
+          next.controls = {}
+          // A part must not vanish with its first formation.
+          if (removed.part !== null && next.part === null) next.part = removed.part
+        }
       }),
 
     moveFormation: (index, dir) =>
       mutate((d) => {
         const target = index + dir
         if (target < 0 || target >= d.formations.length) return
+        // Part boundaries stay where they are; the formation moves between parts.
+        const parts = d.formations.map((x) => x.part)
         const [f] = d.formations.splice(index, 1)
         d.formations.splice(target, 0, f)
+        d.formations.forEach((x, i) => void (x.part = parts[i]))
         for (let i = Math.min(index, target); i <= Math.min(Math.max(index, target) + 1, d.formations.length - 1); i++) {
           d.formations[i].controls = {}
         }
       }),
+
+    startPartAt: (index) =>
+      mutate((d) => {
+        const f = d.formations[index]
+        if (f && index > 0 && f.part === null) f.part = ''
+      }),
+
+    mergePartWithPrevious: (index) =>
+      mutate((d) => {
+        const f = d.formations[index]
+        if (f && index > 0) f.part = null
+      }),
+
+    renamePart: (index, name) =>
+      mutate((d) => {
+        const f = d.formations[index]
+        if (f && (index === 0 || f.part !== null)) f.part = name
+      }, !isTypingBurst(`part-${index}`)),
 
     updateFormation: (index, patch) =>
       mutate((d) => {
@@ -258,6 +290,9 @@ interface UiState {
   snap: number
   playing: boolean
   time: number
+  /** Part shown and played (index into partRanges); null = the whole dance. */
+  viewPart: number | null
+  setViewPart: (p: number | null) => void
   setIndex: (i: number) => void
   setSelection: (ids: string[]) => void
   setMultiSelect: (v: boolean) => void
@@ -282,6 +317,8 @@ export const useUi = create<UiState>((set) => ({
   snap: 0.5,
   playing: false,
   time: 0,
+  viewPart: null,
+  setViewPart: (viewPart) => set({ viewPart, selectedPathId: null }),
   setIndex: (index) => set({ index, selectedPathId: null }),
   setSelection: (selectedIds) => set({ selectedIds, selectedPathId: null, selectedObjectId: null }),
   selectObject: (selectedObjectId) => set({ selectedObjectId }),

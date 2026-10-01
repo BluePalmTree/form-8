@@ -44,6 +44,8 @@ export interface Formation {
   name: string
   /** Free-text note for the trainer (counts, arm movements, reminders). */
   note: string
+  /** Name of the part that starts at this formation; null = continues the previous part. Never null for the first. */
+  part: string | null
   /** Beats ("Takte") the transition from the previous formation takes (ignored for the first). */
   duration: number
   /** Beats the dancers stand still in this formation. */

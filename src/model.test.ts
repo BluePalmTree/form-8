@@ -19,6 +19,8 @@ import {
   defaultSpots,
   handlePos,
   parseChoreography,
+  partRanges,
+  rangeBounds,
   pointAt,
   stateAt,
   totalDuration,
@@ -63,6 +65,7 @@ describe('playback', () => {
     id: 'f2',
     name: '',
     note: '',
+    part: null,
     objectStates: {},
     duration: 2,
     hold: 1,
@@ -312,5 +315,67 @@ describe('dancer colors', () => {
     c.dancers[2].color = '#123456' // chosen by the user
     const parsed = parseChoreography(JSON.parse(JSON.stringify(c)))
     expect(parsed.dancers.map((d) => d.color)).toEqual([colorFor(0), colorFor(1), '#123456'])
+  })
+})
+
+describe('parts', () => {
+  /** Four formations (hold 2, transitions 4): parts start at 0 and 2. */
+  const make = () => {
+    useChoreo.getState().replace(createChoreography('t', 2))
+    for (let i = 0; i < 3; i++) useChoreo.getState().duplicateFormation(i)
+    useChoreo.getState().startPartAt(2)
+    useChoreo.getState().renamePart(0, 'Intro')
+    useChoreo.getState().renamePart(2, 'Verse')
+    return () => useChoreo.getState().choreo
+  }
+
+  it('derives ranges and playback windows', () => {
+    const get = make()
+    expect(partRanges(get())).toEqual([
+      { name: 'Intro', from: 0, to: 1 },
+      { name: 'Verse', from: 2, to: 3 },
+    ])
+    expect(rangeBounds(get(), null)).toMatchObject({ from: 0, to: 3, start: 0, end: totalDuration(get()) })
+    expect(rangeBounds(get(), 0)).toMatchObject({ from: 0, to: 1, start: 0, end: 2 + 4 + 2 })
+    expect(rangeBounds(get(), 1)).toMatchObject({ from: 2, to: 3, start: arrivalTime(get(), 2), end: totalDuration(get()) })
+  })
+
+  it('loads files without parts as a single part', () => {
+    const old = JSON.parse(JSON.stringify(createChoreography('t', 2)))
+    for (const f of old.formations) delete f.part
+    old.formations.push({ ...old.formations[0], part: 42 })
+    const c = parseChoreography(old)
+    expect(partRanges(c)).toHaveLength(1)
+    expect(c.formations[0].part).toBe('')
+  })
+
+  it('round-trips parts', () => {
+    const get = make()
+    expect(partRanges(parseChoreography(JSON.parse(JSON.stringify(get()))))).toEqual(partRanges(get()))
+  })
+
+  it('merges and undoes', () => {
+    const get = make()
+    useChoreo.getState().mergePartWithPrevious(2)
+    expect(partRanges(get())).toHaveLength(1)
+    useChoreo.getState().undo()
+    expect(partRanges(get())).toHaveLength(2)
+  })
+
+  it('keeps a part when its first formation is removed', () => {
+    const get = make()
+    useChoreo.getState().removeFormation(2)
+    expect(partRanges(get())).toEqual([
+      { name: 'Intro', from: 0, to: 1 },
+      { name: 'Verse', from: 2, to: 2 },
+    ])
+  })
+
+  it('keeps boundaries in place when a formation moves across them', () => {
+    const get = make()
+    const id = get().formations[1].id
+    useChoreo.getState().moveFormation(1, 1)
+    expect(get().formations[2].id).toBe(id)
+    expect(partRanges(get()).map((r) => [r.from, r.to])).toEqual([[0, 1], [2, 3]])
   })
 })

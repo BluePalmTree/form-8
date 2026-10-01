@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Stage } from './components/Stage'
 import { DancerPanel, FormationBar, LibraryPanel, ObjectPanel, PlaybackBar, SharePanel, StagePanel } from './components/Panels'
-import { createChoreography, totalDuration } from './model'
+import { createChoreography, partRanges, rangeBounds } from './model'
 import { lastOpenedId, storage } from './storage'
 import { useChoreo, useUi } from './store'
 
@@ -18,10 +18,10 @@ function usePlayback() {
       const { choreo } = useChoreo.getState()
       // Playhead in beats ("Takte"): seconds × beats per minute / 60.
       const t = startBeat + ((now - startedAt) / 1000) * (choreo.tempo / 60)
-      const total = totalDuration(choreo)
-      if (t >= total) {
+      const { to, end } = rangeBounds(choreo, useUi.getState().viewPart)
+      if (t >= end) {
         const ui = useUi.getState()
-        ui.setIndex(useChoreo.getState().choreo.formations.length - 1)
+        ui.setIndex(to)
         ui.stop()
         return
       }
@@ -80,10 +80,17 @@ export default function App() {
 
   // Keep the selected formation valid when formations are removed or a choreography is replaced.
   const index = useUi((s) => s.index)
+  const viewPart = useUi((s) => s.viewPart)
   useEffect(() => {
-    const last = choreo.formations.length - 1
-    if (index > last) useUi.getState().setIndex(Math.max(0, last))
-  }, [choreo, index])
+    const ui = useUi.getState()
+    if (viewPart !== null && viewPart >= partRanges(choreo).length) {
+      ui.setViewPart(null)
+      return
+    }
+    const { from, to } = rangeBounds(choreo, viewPart)
+    if (index > to) ui.setIndex(to)
+    else if (index < from && !ui.playing) ui.setIndex(from)
+  }, [choreo, index, viewPart])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -24,6 +24,13 @@ const de = {
     progress: '{{pos}} / {{total}} Takte',
   },
   pathStyle: { straight: 'Gerade', out: 'Bogen nach außen', in: 'Bogen nach innen' },
+  part: {
+    whole: 'Ganzer Tanz',
+    default: 'Teil {{n}}',
+    name: 'Name des Teils',
+    start: 'Teil hier beginnen',
+    merge: 'Mit vorherigem Teil verbinden',
+  },
   objects: {
     title: 'Objekte ({{count}})',
     add: '+ Rechteck',
@@ -110,6 +117,13 @@ const en: typeof de = {
     progress: '{{pos}} / {{total}} counts',
   },
   pathStyle: { straight: 'Straight', out: 'Bow outward', in: 'Bow inward' },
+  part: {
+    whole: 'Whole dance',
+    default: 'Part {{n}}',
+    name: 'Part name',
+    start: 'Start part here',
+    merge: 'Merge with previous part',
+  },
   objects: {
     title: 'Objects ({{count}})',
     add: '+ Rectangle',

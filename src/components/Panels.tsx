@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportJson, formationPng, pngFiles, shareOrDownload } from '../export'
-import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, textOn, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, totalDuration } from '../model'
+import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, textOn, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, partOf, partRanges, rangeBounds } from '../model'
 import type { ObjectState, PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
@@ -15,27 +15,29 @@ export function useFormationName() {
 
 export function PlaybackBar() {
   const { t } = useTranslation()
-  const count = useChoreo((s) => s.choreo.formations.length)
-  const { index, playing, showPaths, multiSelect } = useUi()
+  const choreo = useChoreo((s) => s.choreo)
+  const count = choreo.formations.length
+  const { index, playing, showPaths, multiSelect, viewPart } = useUi()
   const ui = useUi.getState
-  // Play from the selected formation; from the beginning if it is the last one (nothing left to play).
+  const { from, to } = rangeBounds(choreo, viewPart)
+  // Play from the selected formation; from the beginning of the shown range if it is the last one (nothing left to play).
   const startBeat = () => {
     const { choreo } = useChoreo.getState()
-    return index >= count - 1 ? 0 : arrivalTime(choreo, index)
+    return index >= to ? rangeBounds(choreo, viewPart).start : arrivalTime(choreo, index)
   }
-  const go = (i: number) => ui().setIndex(Math.max(0, Math.min(count - 1, i)))
+  const go = (i: number) => ui().setIndex(Math.max(from, Math.min(to, i)))
   return (
     <div className="bar">
       <button onClick={() => (playing ? ui().stop() : ui().play(startBeat()))} className="primary">
         {playing ? `■ ${t('play.pause')}` : `▶ ${t('play.play')}`}
       </button>
-      <button disabled={playing || index === 0} onClick={() => go(index - 1)} aria-label={t('play.prev')} title={t('play.prev')}>
+      <button disabled={playing || index <= from} onClick={() => go(index - 1)} aria-label={t('play.prev')} title={t('play.prev')}>
         ◀
       </button>
       <span className="counter">
         {index + 1} / {count}
       </span>
-      <button disabled={playing || index >= count - 1} onClick={() => go(index + 1)} aria-label={t('play.next')} title={t('play.next')}>
+      <button disabled={playing || index >= to} onClick={() => go(index + 1)} aria-label={t('play.next')} title={t('play.next')}>
         ▶
       </button>
       <button
@@ -62,8 +64,10 @@ function Timeline() {
   const index = useUi((s) => s.index)
   const playing = useUi((s) => s.playing)
   const time = useUi((s) => s.time)
-  const total = totalDuration(choreo)
-  const pos = playing ? Math.min(time, total) : arrivalTime(choreo, index)
+  const viewPart = useUi((s) => s.viewPart)
+  const { from, to, start, end } = rangeBounds(choreo, viewPart)
+  const total = end - start
+  const pos = Math.max(0, Math.min(playing ? time : arrivalTime(choreo, index), end) - start)
   const pct = total > 0 ? (pos / total) * 100 : 0
   // Whole beats only; the epsilon guards against float error at segment ends.
   const shown = Math.floor(pos + 1e-9)
@@ -79,7 +83,9 @@ function Timeline() {
         aria-valuetext={t('formation.progress', { pos: shown, total })}
       >
         {choreo.formations.map((f, i) => {
-          const len = (i > 0 ? f.duration : 0) + f.hold
+          if (i < from || i > to) return null
+          // The transition into a part's first formation lies before the window.
+          const len = (i > from ? f.duration : 0) + f.hold
           return (
             <button
               key={f.id}
@@ -168,10 +174,66 @@ function TimingSection({ index }: { index: number }) {
   )
 }
 
+/** Switch between the whole dance and its parts, and split the dance into parts. */
+function PartBar() {
+  const { t } = useTranslation()
+  const choreo = useChoreo((s) => s.choreo)
+  const index = useUi((s) => s.index)
+  const playing = useUi((s) => s.playing)
+  const viewPart = useUi((s) => s.viewPart)
+  const st = useChoreo.getState
+  const ranges = partRanges(choreo)
+  const name = (n: string, i: number) => n || t('part.default', { n: i + 1 })
+  const current = partOf(choreo, index)
+  const select = (p: number | null) => {
+    const ui = useUi.getState()
+    ui.setViewPart(p)
+    if (p !== null) ui.setIndex(ranges[p].from)
+  }
+  const f = choreo.formations[index]
+  const startsPart = index === 0 || f?.part !== null
+
+  return (
+    <div className="parts">
+      <div className="chips">
+        <button className={viewPart === null ? 'chip active' : 'chip'} disabled={playing} onClick={() => select(null)}>
+          {t('part.whole')}
+        </button>
+        {ranges.map((r, i) => (
+          <button key={r.from} className={viewPart === i ? 'chip active' : 'chip'} disabled={playing} onClick={() => select(i)}>
+            {name(r.name, i)}
+          </button>
+        ))}
+      </div>
+      <div className="fields">
+        <label>
+          {t('part.name')}
+          <input
+            value={ranges[current].name}
+            placeholder={name('', current)}
+            onChange={(e) => st().renamePart(ranges[current].from, e.target.value)}
+          />
+        </label>
+        <div className="row">
+          <button disabled={playing || startsPart} onClick={() => st().startPartAt(index)}>
+            {t('part.start')}
+          </button>
+          <button disabled={playing || index === 0 || f?.part === null} onClick={() => st().mergePartWithPrevious(index)}>
+            {t('part.merge')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function FormationBar() {
   const { t } = useTranslation()
   const label = useFormationName()
-  const formations = useChoreo((s) => s.choreo.formations)
+  const choreo = useChoreo((s) => s.choreo)
+  const formations = choreo.formations
+  const viewPart = useUi((s) => s.viewPart)
+  const { from, to } = rangeBounds(choreo, viewPart)
   const tempo = useChoreo((s) => s.choreo.tempo)
   const st = useChoreo.getState
   const index = useUi((s) => s.index)
@@ -182,6 +244,7 @@ export function FormationBar() {
   return (
     <section className="panel">
       <h2>{t('formation.title')}</h2>
+      <PartBar />
       <Timeline />
       <div className="fields">
         <label>
@@ -190,7 +253,7 @@ export function FormationBar() {
         </label>
       </div>
       <div className="chips">
-        {formations.map((x, i) => (
+        {formations.map((x, i) => i < from || i > to ? null : (
           <button
             key={x.id}
             className={i === index ? 'chip active' : 'chip'}
@@ -248,10 +311,10 @@ export function FormationBar() {
             >
               {t('formation.resetCurves')}
             </button>
-            <button disabled={playing || index === 0} onClick={() => { st().moveFormation(index, -1); setIndex(index - 1) }}>
+            <button disabled={playing || index <= from} onClick={() => { st().moveFormation(index, -1); setIndex(index - 1) }}>
               ← {t('formation.left')}
             </button>
-            <button disabled={playing || index === formations.length - 1} onClick={() => { st().moveFormation(index, 1); setIndex(index + 1) }}>
+            <button disabled={playing || index >= to} onClick={() => { st().moveFormation(index, 1); setIndex(index + 1) }}>
               {t('formation.right')} →
             </button>
             <button
@@ -497,7 +560,7 @@ export function LibraryPanel() {
     if (c) {
       await storage.save(useChoreo.getState().choreo)
       useChoreo.getState().replace(c)
-      useUi.getState().setIndex(0)
+      { useUi.getState().setViewPart(null); useUi.getState().setIndex(0) }
       useUi.getState().setSelection([])
     }
   }
@@ -505,7 +568,7 @@ export function LibraryPanel() {
   const create = async () => {
     await storage.save(useChoreo.getState().choreo)
     useChoreo.getState().replace(createChoreography(t('choreo.default')))
-    useUi.getState().setIndex(0)
+    { useUi.getState().setViewPart(null); useUi.getState().setIndex(0) }
     useUi.getState().setSelection([])
   }
 
@@ -515,7 +578,7 @@ export function LibraryPanel() {
     const rest = (await storage.list()).filter((x) => x.id !== id)
     const next = rest[0] ? await storage.load(rest[0].id) : null
     useChoreo.getState().replace(next ?? createChoreography(t('choreo.default')))
-    useUi.getState().setIndex(0)
+    { useUi.getState().setViewPart(null); useUi.getState().setIndex(0) }
     refresh()
   }
 
@@ -524,7 +587,7 @@ export function LibraryPanel() {
       const c = parseChoreography(JSON.parse(await file.text()))
       await storage.save(useChoreo.getState().choreo)
       useChoreo.getState().replace(c)
-      useUi.getState().setIndex(0)
+      { useUi.getState().setViewPart(null); useUi.getState().setIndex(0) }
       setError(false)
     } catch {
       setError(true)

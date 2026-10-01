@@ -165,6 +165,7 @@ export function createChoreography(name: string, dancerCount = 8): Choreography 
     id: uid(),
     name: '',
     note: '',
+    part: '',
     duration: 4,
     hold: 2,
     pathStyle: 'straight',
@@ -262,6 +263,49 @@ export function arrivalTime(c: Choreography, i: number): number {
     if (k < i) t += c.formations[k].hold
   }
   return t
+}
+
+export interface PartRange {
+  name: string
+  /** First and last formation index (inclusive). */
+  from: number
+  to: number
+}
+
+/** The parts of a dance, derived from the markers on the formations. */
+export function partRanges(c: Choreography): PartRange[] {
+  const out: PartRange[] = []
+  c.formations.forEach((f, i) => {
+    if (i === 0 || f.part !== null) out.push({ name: f.part ?? '', from: i, to: i })
+    else out[out.length - 1].to = i
+  })
+  return out
+}
+
+/** Index of the part a formation belongs to. */
+export function partOf(c: Choreography, index: number): number {
+  const ranges = partRanges(c)
+  return Math.max(0, ranges.findIndex((r) => index >= r.from && index <= r.to))
+}
+
+export interface RangeBounds {
+  from: number
+  to: number
+  /** Playback window in beats: the part's first formation is reached at `start`, its last stops standing at `end`. */
+  start: number
+  end: number
+}
+
+/** Formations and beats covered by a part; null (or an unknown part) = the whole dance. */
+export function rangeBounds(c: Choreography, part: number | null): RangeBounds {
+  const r = part === null ? undefined : partRanges(c)[part]
+  if (!r) return { from: 0, to: c.formations.length - 1, start: 0, end: totalDuration(c) }
+  return {
+    from: r.from,
+    to: r.to,
+    start: arrivalTime(c, r.from),
+    end: arrivalTime(c, r.to) + c.formations[r.to].hold,
+  }
 }
 
 /** Effective delay and walking time of a dancer in a transition (clamped to the transition). */
@@ -393,6 +437,7 @@ export function parseChoreography(data: unknown): Choreography {
       id: String(f?.id ?? uid()),
       name: String(f?.name ?? ''),
       note: String(f?.note ?? ''),
+      part: typeof f?.part === 'string' ? f.part : null,
       duration: Math.max(0, Math.round(num(f?.duration, 4))),
       hold: Math.max(0, Math.round(num(f?.hold, 0))),
       pathStyle: (['straight', 'out', 'in'] as PathStyle[]).includes(f?.pathStyle as PathStyle)
@@ -404,6 +449,7 @@ export function parseChoreography(data: unknown): Choreography {
       controls,
     }
   })
+  formations[0].part ??= ''
   return {
     id: uid(),
     name: String(d.name ?? ''),
