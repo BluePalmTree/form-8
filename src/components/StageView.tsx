@@ -4,6 +4,9 @@ import type { Choreography, Point } from '../types'
 
 const MARGIN = 1
 const TITLE_SPACE = 0.9
+/** Invisible touch target around dancers and path handles (fingers are bigger than the visible marks). */
+const HIT_RADIUS = 0.5
+const HANDLE_HIT_RADIUS = 0.38
 
 export function viewBoxOf(stage: { width: number; depth: number }, withTitle: boolean) {
   const top = MARGIN + (withTitle ? TITLE_SPACE : 0)
@@ -16,7 +19,9 @@ interface Props {
   /** Overrides the dancer positions (used while animating). */
   positions?: Record<string, Point>
   showPaths: boolean
-  selectedId?: string | null
+  selectedIds?: string[]
+  /** Selection rectangle in stage coordinates. */
+  marquee?: { x: number; y: number; w: number; h: number } | null
   audienceLabel: string
   title?: string
   /** Pixel size, set for rasterized export. */
@@ -36,7 +41,8 @@ export function StageView({
   index,
   positions,
   showPaths,
-  selectedId,
+  selectedIds,
+  marquee,
   audienceLabel,
   title,
   pixelWidth,
@@ -118,7 +124,7 @@ export function StageView({
       {dancers.map((d) => {
         const p = pos[d.id]
         if (!p) return null
-        const selected = selectedId === d.id
+        const selected = !!selectedIds?.includes(d.id)
         const label = dancerLabel(d.name, dancers.indexOf(d))
         return (
           <g
@@ -127,6 +133,7 @@ export function StageView({
             onPointerDown={onDancerDown ? (e) => onDancerDown(d.id, e) : undefined}
             style={interactive ? { cursor: 'grab' } : undefined}
           >
+            {interactive && <circle r={HIT_RADIUS} fill="transparent" />}
             <circle r={R} fill={d.color} stroke={selected ? '#111' : '#fff'} strokeWidth={selected ? 0.09 : 0.06} />
             <text fontSize={label.length > 2 ? 0.22 : label.length > 1 ? 0.3 : 0.38} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill="#fff" pointerEvents="none">
               {label}
@@ -145,20 +152,32 @@ export function StageView({
           const c = controlFor(choreo, index, d.id)
           const h = handlePos(p0, p1, c)
           return (
-            <circle
+            <g
               key={d.id}
-              cx={h.x}
-              cy={h.y}
-              r={0.17}
-              fill={formation.controls[d.id] ? d.color : '#fff'}
-              stroke={d.color}
-              strokeWidth={0.06}
+              transform={`translate(${h.x} ${h.y})`}
               style={{ cursor: 'move' }}
               onPointerDown={(e) => onHandleDown?.(d.id, e)}
               onDoubleClick={() => onHandleReset?.(d.id)}
-            />
+            >
+              <circle r={HANDLE_HIT_RADIUS} fill="transparent" />
+              <circle r={0.17} fill={formation.controls[d.id] ? d.color : '#fff'} stroke={d.color} strokeWidth={0.06} />
+            </g>
           )
         })}
+      {marquee && (
+        <rect
+          x={marquee.x}
+          y={marquee.y}
+          width={marquee.w}
+          height={marquee.h}
+          fill="#5b3fd1"
+          fillOpacity={0.12}
+          stroke="#5b3fd1"
+          strokeWidth={0.04}
+          strokeDasharray="0.15 0.1"
+          pointerEvents="none"
+        />
+      )}
     </svg>
   )
 }

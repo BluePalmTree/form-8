@@ -16,7 +16,7 @@ export function useFormationName() {
 export function PlaybackBar() {
   const { t } = useTranslation()
   const count = useChoreo((s) => s.choreo.formations.length)
-  const { index, playing, showPaths } = useUi()
+  const { index, playing, showPaths, multiSelect } = useUi()
   const ui = useUi.getState
   const go = (i: number) => ui().setIndex(Math.max(0, Math.min(count - 1, i)))
   return (
@@ -32,6 +32,14 @@ export function PlaybackBar() {
       </span>
       <button disabled={playing || index >= count - 1} onClick={() => go(index + 1)} aria-label={t('play.next')} title={t('play.next')}>
         ▶
+      </button>
+      <button
+        className={multiSelect ? 'chip active' : 'chip'}
+        aria-pressed={multiSelect}
+        disabled={playing}
+        onClick={() => ui().setMultiSelect(!multiSelect)}
+      >
+        {t('play.multiSelect')}
       </button>
       <label className="check">
         <input type="checkbox" checked={showPaths} onChange={(e) => ui().setShowPaths(e.target.checked)} />
@@ -103,6 +111,12 @@ export function FormationBar() {
             <NumField value={f.hold} min={0} max={256} step={1} onCommit={(v) => st().updateFormation(index, { hold: v })} />
           </label>
           <div className="row">
+            <button
+              disabled={playing || index === 0 || Object.keys(f.controls).length === 0}
+              onClick={() => st().setPathStyle(index, f.pathStyle)}
+            >
+              {t('formation.resetCurves')}
+            </button>
             <button disabled={playing || index === 0} onClick={() => { st().moveFormation(index, -1); setIndex(index - 1) }}>
               ← {t('formation.left')}
             </button>
@@ -157,7 +171,7 @@ export function StagePanel() {
 export function DancerPanel() {
   const { t } = useTranslation()
   const dancers = useChoreo((s) => s.choreo.dancers)
-  const selectedId = useUi((s) => s.selectedId)
+  const selectedIds = useUi((s) => s.selectedIds)
   const st = useChoreo.getState
   return (
     <section className="panel">
@@ -168,10 +182,18 @@ export function DancerPanel() {
           <button onClick={() => st().addDancers(5)}>{t('dancers.add5')}</button>
         </div>
       </div>
+      <div className="row">
+        <button onClick={() => useUi.getState().setSelection(dancers.map((d) => d.id))}>{t('dancers.selectAll')}</button>
+        <button disabled={selectedIds.length === 0} onClick={() => useUi.getState().setSelection([])}>
+          {t('dancers.selectNone')}
+        </button>
+      </div>
       <p className="hint">{t('dancers.hint')}</p>
       <ul className="dancers">
         {dancers.map((d, i) => (
-          <li key={d.id} className={d.id === selectedId ? 'selected' : ''} onClick={() => useUi.getState().select(d.id)}>
+          <li key={d.id} className={selectedIds.includes(d.id) ? 'selected' : ''}
+            onClick={(e) => (e.shiftKey || e.ctrlKey || e.metaKey ? useUi.getState().toggleSelect(d.id) : useUi.getState().setSelection([d.id]))}
+          >
             <span className="num" style={{ background: d.color }}>
               {i + 1}
             </span>
@@ -254,7 +276,7 @@ export function LibraryPanel() {
       await storage.save(useChoreo.getState().choreo)
       useChoreo.getState().replace(c)
       useUi.getState().setIndex(0)
-      useUi.getState().select(null)
+      useUi.getState().setSelection([])
     }
   }
 
@@ -262,7 +284,7 @@ export function LibraryPanel() {
     await storage.save(useChoreo.getState().choreo)
     useChoreo.getState().replace(createChoreography(t('choreo.default')))
     useUi.getState().setIndex(0)
-    useUi.getState().select(null)
+    useUi.getState().setSelection([])
   }
 
   const remove = async () => {

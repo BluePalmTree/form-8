@@ -14,6 +14,10 @@ Before every commit that changes app behavior or UI, propose a version bump to t
 
 Apply the confirmed bump with `npm version <patch|minor|major> --no-git-tag-version` and include `package.json` and `package-lock.json` in the same commit. Skip the bump for commits that do not affect the app (docs, CI config, tests only) and say so.
 
+## Touch
+
+Every interaction must also work with touch on mobile: use Pointer Events and give modifier-key or hover features a touch alternative.
+
 ## Choreographies
 
 `choreos/` holds local choreography files (e.g. JSON exports from the app) to discuss with Claude. It is git-ignored; never commit or push its contents.

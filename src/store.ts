@@ -27,7 +27,7 @@ interface ChoreoState {
   removeFormation: (index: number) => void
   moveFormation: (index: number, dir: -1 | 1) => void
   updateFormation: (index: number, patch: Partial<Pick<Formation, 'name' | 'duration' | 'hold'>>) => void
-  setPosition: (index: number, id: string, p: Point, record?: boolean) => void
+  setPositions: (index: number, positions: Record<string, Point>, record?: boolean) => void
   setControl: (index: number, id: string, c: Point | null, record?: boolean) => void
 }
 
@@ -151,10 +151,13 @@ export const useChoreo = create<ChoreoState>((set) => {
         Object.assign(d.formations[index], patch)
       }),
 
-    setPosition: (index, id, p, record = true) =>
+    setPositions: (index, positions, record = true) =>
       mutate((d) => {
         const f = d.formations[index]
-        if (f?.positions[id]) f.positions[id] = clampPoint(p, d.stage)
+        if (!f) return
+        for (const [id, p] of Object.entries(positions)) {
+          if (f.positions[id]) f.positions[id] = clampPoint(p, d.stage)
+        }
       }, record),
 
     setControl: (index, id, c, record = true) =>
@@ -169,14 +172,18 @@ export const useChoreo = create<ChoreoState>((set) => {
 
 interface UiState {
   index: number
-  selectedId: string | null
+  selectedIds: string[]
+  /** Tap mode for touch screens: taps add or remove dancers instead of replacing the selection. */
+  multiSelect: boolean
   showPaths: boolean
   /** Grid snap in meters; 0 = off. */
   snap: number
   playing: boolean
   time: number
   setIndex: (i: number) => void
-  select: (id: string | null) => void
+  setSelection: (ids: string[]) => void
+  setMultiSelect: (v: boolean) => void
+  toggleSelect: (id: string) => void
   setShowPaths: (v: boolean) => void
   setSnap: (v: number) => void
   play: () => void
@@ -186,13 +193,19 @@ interface UiState {
 
 export const useUi = create<UiState>((set) => ({
   index: 0,
-  selectedId: null,
+  selectedIds: [],
+  multiSelect: false,
   showPaths: true,
   snap: 0.5,
   playing: false,
   time: 0,
   setIndex: (index) => set({ index }),
-  select: (selectedId) => set({ selectedId }),
+  setSelection: (selectedIds) => set({ selectedIds }),
+  setMultiSelect: (multiSelect) => set({ multiSelect }),
+  toggleSelect: (id) =>
+    set((s) => ({
+      selectedIds: s.selectedIds.includes(id) ? s.selectedIds.filter((x) => x !== id) : [...s.selectedIds, id],
+    })),
   setShowPaths: (showPaths) => set({ showPaths }),
   setSnap: (snap) => set({ snap }),
   play: () => set({ playing: true, time: 0 }),
