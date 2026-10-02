@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import i18n from './i18n'
 import { parseChoreography } from './model'
 import { localStorageBackend, syncHooks, writeLocal } from './storage'
+import { makeToken, shareUrl } from './share'
 import { useChoreo } from './store'
 import { supabase } from './supabase'
 import type { Choreography } from './types'
@@ -209,6 +210,28 @@ export async function resolveConflict(id: string, keep: 'cloud' | 'local') {
 }
 
 /** Returns null on success, otherwise the error message from Supabase. */
+export async function getShareLink(id: string): Promise<string | null> {
+  const { data, error } = await table().select('share_token').eq('id', id).maybeSingle()
+  if (error) throw error
+  return data?.share_token ? shareUrl(data.share_token) : null
+}
+
+/** Creates (or returns the existing) read-only link; the choreography is uploaded first so the row exists. */
+export async function createShareLink(c: Choreography): Promise<string> {
+  const existing = await getShareLink(c.id).catch(() => null)
+  if (existing) return existing
+  if (!(await push(c))) throw new Error('conflict')
+  const token = makeToken()
+  const { error } = await table().update({ share_token: token }).eq('id', c.id)
+  if (error) throw error
+  return shareUrl(token)
+}
+
+export async function stopSharing(id: string) {
+  const { error } = await table().update({ share_token: null }).eq('id', id)
+  if (error) throw error
+}
+
 export async function signIn(email: string): Promise<string | null> {
   if (!supabase) return 'not configured'
   const { error } = await supabase.auth.signInWithOtp({

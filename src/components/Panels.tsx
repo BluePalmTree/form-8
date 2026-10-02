@@ -6,7 +6,7 @@ import type { ObjectState, PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
 import { useChoreo, useUi } from '../store'
-import { resolveConflict, signIn, signOut, useSync } from '../sync'
+import { createShareLink, getShareLink, resolveConflict, signIn, signOut, stopSharing, useSync } from '../sync'
 import { NumField } from './NumField'
 
 export function useFormationName() {
@@ -58,7 +58,7 @@ export function PlaybackBar() {
 }
 
 /** Progress through the planned beats: one segment per formation, plus a playhead. */
-function Timeline() {
+export function Timeline() {
   const { t } = useTranslation()
   const label = useFormationName()
   const choreo = useChoreo((s) => s.choreo)
@@ -175,37 +175,48 @@ function TimingSection({ index }: { index: number }) {
   )
 }
 
-/** Switch between the whole dance and its parts, and split the dance into parts. */
-function PartBar() {
+/** Switch between the whole dance and its parts. */
+export function PartChips() {
   const { t } = useTranslation()
   const choreo = useChoreo((s) => s.choreo)
-  const index = useUi((s) => s.index)
   const playing = useUi((s) => s.playing)
   const viewPart = useUi((s) => s.viewPart)
-  const st = useChoreo.getState
   const ranges = partRanges(choreo)
-  const name = (n: string, i: number) => n || t('part.default', { n: i + 1 })
-  const current = partOf(choreo, index)
   const select = (p: number | null) => {
     const ui = useUi.getState()
     ui.setViewPart(p)
     if (p !== null) ui.setIndex(ranges[p].from)
   }
+  return (
+    <div className="chips">
+      <button className={viewPart === null ? 'chip active' : 'chip'} disabled={playing} onClick={() => select(null)}>
+        {t('part.whole')}
+      </button>
+      {ranges.map((r, i) => (
+        <button key={r.from} className={viewPart === i ? 'chip active' : 'chip'} disabled={playing} onClick={() => select(i)}>
+          {r.name || t('part.default', { n: i + 1 })}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Split the dance into parts. */
+function PartBar() {
+  const { t } = useTranslation()
+  const choreo = useChoreo((s) => s.choreo)
+  const index = useUi((s) => s.index)
+  const playing = useUi((s) => s.playing)
+  const st = useChoreo.getState
+  const ranges = partRanges(choreo)
+  const name = (n: string, i: number) => n || t('part.default', { n: i + 1 })
+  const current = partOf(choreo, index)
   const f = choreo.formations[index]
   const startsPart = index === 0 || f?.part !== null
 
   return (
     <div className="parts">
-      <div className="chips">
-        <button className={viewPart === null ? 'chip active' : 'chip'} disabled={playing} onClick={() => select(null)}>
-          {t('part.whole')}
-        </button>
-        {ranges.map((r, i) => (
-          <button key={r.from} className={viewPart === i ? 'chip active' : 'chip'} disabled={playing} onClick={() => select(i)}>
-            {name(r.name, i)}
-          </button>
-        ))}
-      </div>
+      <PartChips />
       <div className="fields">
         <label>
           {t('part.name')}
@@ -637,7 +648,54 @@ export function AccountPanel() {
   const { enabled, email, status, conflicts } = useSync()
   const [address, setAddress] = useState('')
   const [sent, setSent] = useState<{ error: string | null } | null>(null)
+  const choreoId = useChoreo((s) => s.choreo.id)
+  const [link, setLink] = useState<string | null>(null)
+  const [shareMsg, setShareMsg] = useState<string | null>(null)
+  useEffect(() => {
+    setLink(null)
+    setShareMsg(null)
+    if (!enabled || !email) return
+    let cancelled = false
+    getShareLink(choreoId)
+      .then((l) => !cancelled && setLink(l))
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [enabled, email, choreoId])
   if (!enabled) return null
+
+  const deliver = async (url: string) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ url })
+        return
+      } catch {
+        /* cancelled or unsupported: fall back to copying */
+      }
+    }
+    await navigator.clipboard.writeText(url)
+    setShareMsg(t('account.shareCopied'))
+  }
+  const share = async () => {
+    try {
+      const url = link ?? (await createShareLink(useChoreo.getState().choreo))
+      setLink(url)
+      setShareMsg(null)
+      await deliver(url)
+    } catch {
+      setShareMsg(t('account.shareFailed'))
+    }
+  }
+  const stopShare = async () => {
+    try {
+      await stopSharing(choreoId)
+      setLink(null)
+      setShareMsg(null)
+    } catch {
+      setShareMsg(t('account.shareFailed'))
+    }
+  }
 
   const send = async () => setSent({ error: await signIn(address.trim()) })
   return (
@@ -656,6 +714,12 @@ export function AccountPanel() {
               </div>
             </div>
           ))}
+          <p className="hint">{t('account.shareHint')}</p>
+          <div className="row">
+            <button onClick={() => void share()}>{link ? t('account.shareCopy') : t('account.shareLink')}</button>
+            {link && <button onClick={() => void stopShare()}>{t('account.shareStop')}</button>}
+          </div>
+          {shareMsg && <p className="hint">{shareMsg}</p>}
           <div className="row">
             <button onClick={() => void signOut()}>{t('account.signOut')}</button>
           </div>

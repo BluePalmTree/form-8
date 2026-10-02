@@ -3,36 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Stage } from './components/Stage'
 import { AccountPanel, DancerPanel, FormationBar, LibraryPanel, ObjectPanel, PlaybackBar, SharePanel, StagePanel } from './components/Panels'
 import { createChoreography, partRanges, rangeBounds } from './model'
+import { usePlayback } from './playback'
 import { lastOpenedId, storage } from './storage'
 import { useChoreo, useUi } from './store'
 import { initSync } from './sync'
-
-/** Advances the playhead with requestAnimationFrame while playing. */
-function usePlayback() {
-  const playing = useUi((s) => s.playing)
-  useEffect(() => {
-    if (!playing) return
-    let raf = 0
-    const startedAt = performance.now()
-    const startBeat = useUi.getState().time
-    const tick = (now: number) => {
-      const { choreo } = useChoreo.getState()
-      // Playhead in beats ("Takte"): seconds × beats per minute / 60.
-      const t = startBeat + ((now - startedAt) / 1000) * (choreo.tempo / 60)
-      const { to, end } = rangeBounds(choreo, useUi.getState().viewPart)
-      if (t >= end) {
-        const ui = useUi.getState()
-        ui.setIndex(to)
-        ui.stop()
-        return
-      }
-      useUi.getState().setTime(t)
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [playing])
-}
 
 /** Loads the last opened choreography and saves changes (debounced). Returns true once loaded. */
 function usePersistence(defaultName: string) {

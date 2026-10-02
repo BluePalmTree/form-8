@@ -106,7 +106,14 @@ const de = {
     conflict: '„{{name}}“ wurde auf einem anderen Gerät geändert.',
     keepCloud: 'Cloud-Version behalten',
     keepLocal: 'Lokale Version behalten',
+    shareLink: 'Ansichts-Link teilen',
+    shareHint: 'Wer den Link hat, sieht den aktuellen Stand dieser Choreografie (nur ansehen und abspielen).',
+    shareCopy: 'Link kopieren',
+    shareStop: 'Freigabe beenden',
+    shareCopied: 'Link kopiert.',
+    shareFailed: 'Der Link konnte nicht erstellt werden.',
   },
+  viewer: { loading: 'Lade …', invalid: 'Dieser Link ist ungültig oder die Freigabe wurde beendet.', unavailable: 'Cloud nicht konfiguriert.' },
 }
 
 const en: typeof de = {
@@ -214,7 +221,14 @@ const en: typeof de = {
     conflict: '“{{name}}” was changed on another device.',
     keepCloud: 'Keep cloud version',
     keepLocal: 'Keep local version',
+    shareLink: 'Share view link',
+    shareHint: 'Anyone with the link sees the current state of this choreography (view and play only).',
+    shareCopy: 'Copy link',
+    shareStop: 'Stop sharing',
+    shareCopied: 'Link copied.',
+    shareFailed: 'The link could not be created.',
   },
+  viewer: { loading: 'Loading …', invalid: 'This link is invalid or sharing was stopped.', unavailable: 'Cloud not configured.' },
 }
 
 const LANG_KEY = 'form8:lang'
