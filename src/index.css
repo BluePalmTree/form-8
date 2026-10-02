@@ -379,3 +379,9 @@ textarea {
   gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
+
+.conflict {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

@@ -6,6 +6,7 @@ import type { ObjectState, PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
 import { useChoreo, useUi } from '../store'
+import { resolveConflict, signIn, signOut, useSync } from '../sync'
 import { NumField } from './NumField'
 
 export function useFormationName() {
@@ -547,13 +548,14 @@ export function LibraryPanel() {
   const [items, setItems] = useState<ChoreoSummary[]>([])
   const [error, setError] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const syncRev = useSync((s) => s.rev)
 
   const refresh = () => void storage.list().then(setItems)
   useEffect(() => {
     // Refresh after the debounced autosave had a chance to run.
     const timer = setTimeout(refresh, 600)
     return () => clearTimeout(timer)
-  }, [id, name])
+  }, [id, name, syncRev])
 
   const open = async (target: string) => {
     const c = await storage.load(target)
@@ -626,6 +628,60 @@ export function LibraryPanel() {
         }}
       />
       {error && <p className="hint error">{t('library.importError')}</p>}
+    </section>
+  )
+}
+
+export function AccountPanel() {
+  const { t } = useTranslation()
+  const { enabled, email, status, conflicts } = useSync()
+  const [address, setAddress] = useState('')
+  const [sent, setSent] = useState<{ error: string | null } | null>(null)
+  if (!enabled) return null
+
+  const send = async () => setSent({ error: await signIn(address.trim()) })
+  return (
+    <section className="panel">
+      <h2>{t('account.title')}</h2>
+      {email ? (
+        <>
+          <p className="hint">{t('account.signedIn', { email })}</p>
+          <p className={status === 'error' ? 'hint error' : 'hint'}>{t(`account.status.${status}`)}</p>
+          {conflicts.map((c) => (
+            <div key={c.id} className="conflict">
+              <p className="hint error">{t('account.conflict', { name: c.name })}</p>
+              <div className="row">
+                <button onClick={() => void resolveConflict(c.id, 'cloud')}>{t('account.keepCloud')}</button>
+                <button onClick={() => void resolveConflict(c.id, 'local')}>{t('account.keepLocal')}</button>
+              </div>
+            </div>
+          ))}
+          <div className="row">
+            <button onClick={() => void signOut()}>{t('account.signOut')}</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="hint">{t('account.hint')}</p>
+          <input
+            type="email"
+            value={address}
+            placeholder={t('account.email')}
+            aria-label={t('account.email')}
+            onChange={(e) => setAddress(e.target.value)}
+          />
+          <div className="row">
+            <button disabled={!address.includes('@')} onClick={() => void send()}>
+              {t('account.send')}
+            </button>
+          </div>
+          {sent && (
+            <p className={sent.error ? 'hint error' : 'hint'}>
+              {sent.error ? `${t('account.failed')} (${sent.error})` : t('account.sent')}
+            </p>
+          )}
+        </>
+      )}
     </section>
   )
 }

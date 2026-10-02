@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Stage } from './components/Stage'
-import { DancerPanel, FormationBar, LibraryPanel, ObjectPanel, PlaybackBar, SharePanel, StagePanel } from './components/Panels'
+import { AccountPanel, DancerPanel, FormationBar, LibraryPanel, ObjectPanel, PlaybackBar, SharePanel, StagePanel } from './components/Panels'
 import { createChoreography, partRanges, rangeBounds } from './model'
 import { lastOpenedId, storage } from './storage'
 import { useChoreo, useUi } from './store'
+import { initSync } from './sync'
 
 /** Advances the playhead with requestAnimationFrame while playing. */
 function usePlayback() {
@@ -61,9 +62,21 @@ function usePersistence(defaultName: string) {
     })
     // Save once so a fresh default choreography shows up in the list.
     void storage.save(useChoreo.getState().choreo)
+    // Don't lose a pending edit when the tab is closed or backgrounded (mobile).
+    const flush = () => {
+      if (document.visibilityState === 'hidden') {
+        clearTimeout(timer)
+        void storage.save(useChoreo.getState().choreo)
+      }
+    }
+    document.addEventListener('visibilitychange', flush)
+    window.addEventListener('pagehide', flush)
+    initSync()
     return () => {
       unsub()
       clearTimeout(timer)
+      document.removeEventListener('visibilitychange', flush)
+      window.removeEventListener('pagehide', flush)
     }
   }, [loaded])
 
@@ -143,6 +156,7 @@ export default function App() {
           <ObjectPanel />
           <DancerPanel />
           <LibraryPanel />
+          <AccountPanel />
         </aside>
       </main>
       <footer className="footer">v{__APP_VERSION__}</footer>

@@ -92,6 +92,21 @@ const de = {
     import: 'Importieren',
     importError: 'Die Datei ist keine gültige Choreografie.',
   },
+  account: {
+    title: 'Cloud',
+    hint: 'Melde dich an, um Choreografien auf mehreren Geräten zu nutzen. Du bekommst einen Login-Link per E-Mail.',
+    email: 'E-Mail-Adresse',
+    send: 'Login-Link senden',
+    sent: 'Link gesendet – öffne ihn auf diesem Gerät.',
+    failed: 'Der Link konnte nicht gesendet werden.',
+    signedIn: 'Angemeldet als {{email}}',
+    signOut: 'Abmelden',
+    uploadLocal: '{{count}} lokale Choreografie(n) in die Cloud hochladen?',
+    status: { idle: 'Synchronisiert', syncing: 'Synchronisiere …', pending: 'Änderungen ausstehend', error: 'Sync-Fehler – wird erneut versucht' },
+    conflict: '„{{name}}“ wurde auf einem anderen Gerät geändert.',
+    keepCloud: 'Cloud-Version behalten',
+    keepLocal: 'Lokale Version behalten',
+  },
 }
 
 const en: typeof de = {
@@ -184,6 +199,21 @@ const en: typeof de = {
     export: 'Export',
     import: 'Import',
     importError: 'The file is not a valid choreography.',
+  },
+  account: {
+    title: 'Cloud',
+    hint: 'Sign in to use your choreographies on several devices. You will get a login link by email.',
+    email: 'Email address',
+    send: 'Send login link',
+    sent: 'Link sent – open it on this device.',
+    failed: 'The link could not be sent.',
+    signedIn: 'Signed in as {{email}}',
+    signOut: 'Sign out',
+    uploadLocal: 'Upload {{count}} local choreography(ies) to the cloud?',
+    status: { idle: 'Synced', syncing: 'Syncing …', pending: 'Changes pending', error: 'Sync error – will retry' },
+    conflict: '“{{name}}” was changed on another device.',
+    keepCloud: 'Keep cloud version',
+    keepLocal: 'Keep local version',
   },
 }
 

@@ -7,7 +7,7 @@ export interface ChoreoSummary {
   updatedAt: number
 }
 
-/** Persistence boundary; a cloud backend can implement the same interface later. */
+/** Persistence boundary. */
 export interface ChoreoStorage {
   list(): Promise<ChoreoSummary[]>
   load(id: string): Promise<Choreography | null>
@@ -29,6 +29,11 @@ function read(id: string): Choreography | null {
   }
 }
 
+/** Writes a choreography without marking it as the last opened one. */
+export function writeLocal(c: Choreography) {
+  localStorage.setItem(PREFIX + c.id, JSON.stringify(c))
+}
+
 export const localStorageBackend: ChoreoStorage = {
   async list() {
     const out: ChoreoSummary[] = []
@@ -44,7 +49,7 @@ export const localStorageBackend: ChoreoStorage = {
     return read(id)
   },
   async save(c) {
-    localStorage.setItem(PREFIX + c.id, JSON.stringify(c))
+    writeLocal(c)
     localStorage.setItem(CURRENT, c.id)
   },
   async remove(id) {
@@ -53,6 +58,20 @@ export const localStorageBackend: ChoreoStorage = {
   },
 }
 
-export const storage: ChoreoStorage = localStorageBackend
+/** Registered by sync.ts so that local writes are mirrored to the cloud. */
+export const syncHooks: { onSave?: (c: Choreography) => void; onRemove?: (id: string) => void } = {}
+
+/** Local-first: every write goes to localStorage, the cloud is updated in the background. */
+export const storage: ChoreoStorage = {
+  ...localStorageBackend,
+  async save(c) {
+    await localStorageBackend.save(c)
+    syncHooks.onSave?.(c)
+  },
+  async remove(id) {
+    await localStorageBackend.remove(id)
+    syncHooks.onRemove?.(id)
+  },
+}
 
 export const lastOpenedId = () => localStorage.getItem(CURRENT)
