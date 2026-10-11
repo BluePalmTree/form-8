@@ -194,7 +194,13 @@ export function PartChips() {
         {t('part.whole')}
       </button>
       {ranges.map((r, i) => (
-        <button key={r.from} className={viewPart === i ? 'chip active' : 'chip'} disabled={playing} onClick={() => select(i)}>
+        <button
+          key={r.from}
+          className={viewPart === i ? 'chip active' : 'chip part'}
+          style={{ '--part-color': ranges.length > 1 ? partColor(i) : undefined } as CSSProperties}
+          disabled={playing}
+          onClick={() => select(i)}
+        >
           {r.name || t('part.default', { n: i + 1 })}
         </button>
       ))}
@@ -214,6 +220,14 @@ function PartBar() {
   const current = partOf(choreo, index)
   const f = choreo.formations[index]
   const startsPart = index === 0 || f?.part !== null
+  // Keep the moved part selected: it ends up at the neighbor's position.
+  const movePart = (dir: -1 | 1) => {
+    st().movePart(current, dir)
+    const ui = useUi.getState()
+    const moved = partRanges(st().choreo)[current + dir]
+    ui.setIndex(moved.from + (index - ranges[current].from))
+    if (ui.viewPart !== null) ui.setViewPart(current + dir)
+  }
 
   return (
     <div className="parts">
@@ -234,6 +248,12 @@ function PartBar() {
           <button disabled={playing || index === 0 || f?.part === null} onClick={() => st().mergePartWithPrevious(index)}>
             {t('part.merge')}
           </button>
+          <button disabled={playing || current === 0} onClick={() => movePart(-1)}>
+            {t('part.earlier')}
+          </button>
+          <button disabled={playing || current >= ranges.length - 1} onClick={() => movePart(1)}>
+            {t('part.later')}
+          </button>
         </div>
       </div>
     </div>
@@ -253,6 +273,20 @@ export function FormationBar() {
   const playing = useUi((s) => s.playing)
   const setIndex = useUi.getState().setIndex
   const f = formations[index]
+  // Several formations can be marked (tap mode, no modifier key); without marks the selected one is used.
+  const [marking, setMarking] = useState(false)
+  const [marks, setMarks] = useState<string[]>([])
+  const ranges = partRanges(choreo)
+  const ids = marking ? marks.filter((id) => formations.some((x) => x.id === id)) : f ? [f.id] : []
+  const assign = (part: number) => {
+    const id = f?.id
+    st().assignToPart(ids, part)
+    // Keep following the selected formation to its new place.
+    const at = st().choreo.formations.findIndex((x) => x.id === id)
+    if (at >= 0) setIndex(at)
+    useUi.getState().setViewPart(useUi.getState().viewPart === null ? null : partOf(st().choreo, Math.max(at, 0)))
+    setMarks([])
+  }
 
   return (
     <section className="panel">
@@ -269,9 +303,10 @@ export function FormationBar() {
         {formations.map((x, i) => i < from || i > to ? null : (
           <button
             key={x.id}
-            className={i === index ? 'chip active' : 'chip'}
+            className={`chip${i === index ? ' active' : ''}${marking && marks.includes(x.id) ? ' marked' : ''}`}
+            aria-pressed={marking ? marks.includes(x.id) : undefined}
             disabled={playing}
-            onClick={() => setIndex(i)}
+            onClick={() => (marking ? setMarks((m) => (m.includes(x.id) ? m.filter((y) => y !== x.id) : [...m, x.id])) : setIndex(i))}
             title={label(x.name, i)}
           >
             {i + 1}
@@ -280,7 +315,36 @@ export function FormationBar() {
         <button className="chip" disabled={playing} onClick={() => { st().duplicateFormation(index); setIndex(index + 1) }} title={t('formation.add')}>
           +
         </button>
+        {ranges.length > 1 && (
+          <button
+            className={marking ? 'chip active' : 'chip'}
+            aria-pressed={marking}
+            disabled={playing}
+            onClick={() => { setMarks(marking ? [] : [f.id]); setMarking(!marking) }}
+          >
+            {t('part.mark')}
+          </button>
+        )}
       </div>
+      {ranges.length > 1 && (
+        <div className="chips">
+          <span className="hint">{t('part.assign', { count: ids.length })}</span>
+          {ranges.map((r, i) => {
+            const others = formations.filter((x, k) => ids.includes(x.id) && partOf(choreo, k) !== i).length
+            return (
+              <button
+                key={r.from}
+                className="chip part"
+                style={{ '--part-color': partColor(i) } as CSSProperties}
+                disabled={playing || others === 0}
+                onClick={() => assign(i)}
+              >
+                {r.name || t('part.default', { n: i + 1 })}
+              </button>
+            )
+          })}
+        </div>
+      )}
       {f && (
         <div className="fields">
           <label>
@@ -289,7 +353,7 @@ export function FormationBar() {
           </label>
           <label>
             {t('formation.duration')}
-            <NumField value={f.duration} min={0} max={256} integer disabled={index === 0} onCommit={(v) => st().updateFormation(index, { duration: v })} />
+            <NumField value={index === 0 ? 0 : f.duration} min={0} max={256} integer disabled={index === 0} onCommit={(v) => st().updateFormation(index, { duration: v })} />
           </label>
           <label>
             {t('formation.pathStyle')}

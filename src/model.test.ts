@@ -388,4 +388,28 @@ describe('parts', () => {
     expect(get().formations[2].id).toBe(id)
     expect(partRanges(get()).map((r) => [r.from, r.to])).toEqual([[0, 1], [2, 3]])
   })
+
+  it('assigns formations to another part and refuses to empty a part', () => {
+    const get = make()
+    const ids = get().formations.map((f) => f.id)
+    useChoreo.getState().assignToPart([ids[1]], 1)
+    expect(get().formations.map((f) => f.id)).toEqual([ids[0], ids[2], ids[3], ids[1]])
+    expect(partRanges(get()).map((r) => [r.name, r.from, r.to])).toEqual([['Intro', 0, 0], ['Verse', 1, 3]])
+    useChoreo.getState().undo()
+    expect(get().formations.map((f) => f.id)).toEqual(ids)
+    useChoreo.getState().assignToPart([ids[1]], 1)
+    // Moving the only formation of Intro would make the part vanish.
+    useChoreo.getState().assignToPart([ids[0]], 1)
+    expect(get().formations.map((f) => f.id)).toEqual([ids[0], ids[2], ids[3], ids[1]])
+  })
+
+  it('moves a whole part and undoes', () => {
+    const get = make()
+    const ids = get().formations.map((f) => f.id)
+    useChoreo.getState().movePart(1, -1)
+    expect(get().formations.map((f) => f.id)).toEqual([ids[2], ids[3], ids[0], ids[1]])
+    expect(partRanges(get()).map((r) => [r.name, r.from, r.to])).toEqual([['Verse', 0, 1], ['Intro', 2, 3]])
+    useChoreo.getState().undo()
+    expect(get().formations.map((f) => f.id)).toEqual(ids)
+  })
 })

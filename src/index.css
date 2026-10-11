@@ -233,6 +233,15 @@ h2 {
   padding: 0 8px;
 }
 
+.chip.part {
+  background: var(--part-color, #fff);
+}
+
+.chip.marked {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
 .chip.active {
   background: var(--accent);
   border-color: var(--accent);

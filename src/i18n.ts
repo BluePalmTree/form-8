@@ -30,6 +30,10 @@ const de = {
     name: 'Name des Teils',
     start: 'Teil hier beginnen',
     merge: 'Mit vorherigem Teil verbinden',
+    mark: 'Markieren',
+    assign: '{{count}} Formation(en) in Teil verschieben:',
+    earlier: '◀ Teil nach vorn',
+    later: 'Teil nach hinten ▶',
   },
   objects: {
     title: 'Objekte ({{count}})',
@@ -145,6 +149,10 @@ const en: typeof de = {
     name: 'Part name',
     start: 'Start part here',
     merge: 'Merge with previous part',
+    mark: 'Mark',
+    assign: 'Move {{count}} formation(s) to part:',
+    earlier: '◀ Move part earlier',
+    later: 'Move part later ▶',
   },
   objects: {
     title: 'Objects ({{count}})',

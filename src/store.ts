@@ -8,6 +8,7 @@ import {
   createDancers,
   defaultObjectState,
   freeSpot,
+  partRanges,
   uid,
 } from './model'
 import type { Choreography, Dancer, Formation, ObjectState, PathStyle, Point, Stage, StageObject } from './types'
@@ -48,6 +49,10 @@ interface ChoreoState {
   /** Remove the part boundary in front of this formation. */
   mergePartWithPrevious: (index: number) => void
   renamePart: (index: number, name: string) => void
+  /** Move formations (by id) to the end of a part (index into partRanges); refused if a part would become empty. */
+  assignToPart: (ids: string[], part: number) => void
+  /** Swap a part (index into partRanges) with its neighbor. */
+  movePart: (part: number, dir: -1 | 1) => void
   updateFormation: (index: number, patch: Partial<Pick<Formation, 'name' | 'note' | 'duration' | 'hold'>>) => void
   setPositions: (index: number, positions: Record<string, Point>, record?: boolean) => void
   setControl: (index: number, id: string, c: Point | null, record?: boolean) => void
@@ -244,6 +249,52 @@ export const useChoreo = create<ChoreoState>((set) => {
       mutate((d) => {
         const f = d.formations[index]
         if (f && index > 0) f.part = null
+      }),
+
+    assignToPart: (ids, part) =>
+      mutate((d) => {
+        const ranges = partRanges(d)
+        if (!ranges[part]) return
+        const marked = new Set(ids)
+        const blocks = ranges.map((r) => ({ name: r.name, fs: d.formations.slice(r.from, r.to + 1) }))
+        const moved = blocks.flatMap((b, i) => (i === part ? [] : b.fs.filter((f) => marked.has(f.id))))
+        if (moved.length === 0) return
+        const staying = blocks.map((b, i) => (i === part ? b.fs : b.fs.filter((f) => !marked.has(f.id))))
+        if (staying.some((fs) => fs.length === 0)) return
+        const before = new Map(d.formations.map((f, i) => [f.id, d.formations[i - 1]?.id]))
+        staying[part] = [...staying[part], ...moved]
+        d.formations = staying.flatMap((fs, b) =>
+          fs.map((f, i) => {
+            f.part = i === 0 ? blocks[b].name : null
+            return f
+          }),
+        )
+        // Paths only make sense between the formations they were drawn for.
+        d.formations.forEach((f, i) => {
+          if (d.formations[i - 1]?.id !== before.get(f.id)) f.controls = {}
+        })
+      }),
+
+    movePart: (part, dir) =>
+      mutate((d) => {
+        const ranges = partRanges(d)
+        const target = part + dir
+        if (!ranges[part] || !ranges[target]) return
+        const blocks = ranges.map((r) => ({ name: r.name, fs: d.formations.slice(r.from, r.to + 1) }))
+        const [b] = blocks.splice(part, 1)
+        blocks.splice(target, 0, b)
+        d.formations = blocks.flatMap((x) =>
+          x.fs.map((f, i) => {
+            f.part = i === 0 ? x.name : null
+            return f
+          }),
+        )
+        // Paths into a part's first formation no longer match its new predecessor.
+        let at = 0
+        for (const x of blocks) {
+          d.formations[at].controls = {}
+          at += x.fs.length
+        }
       }),
 
     renamePart: (index, name) =>
