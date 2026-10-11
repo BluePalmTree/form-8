@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PartChips, Timeline } from './components/Panels'
 import { StageView } from './components/StageView'
-import { arrivalTime, parseChoreography, rangeBounds, stateAt } from './model'
+import { parseChoreography, playStart, stateAt } from './model'
 import { usePlayback } from './playback'
 import { useChoreo, useUi } from './store'
 import { supabase } from './supabase'
@@ -50,9 +50,7 @@ export function Viewer({ token }: { token: string }) {
       ui.setIndex(stateAt(choreo, ui.time).index)
       return ui.stop()
     }
-    const { to, start } = rangeBounds(choreo, viewPart)
-    // Start over when the end was reached.
-    ui.play(ui.index >= to ? start : arrivalTime(choreo, ui.index))
+    ui.play(playStart(choreo, viewPart, ui.index))
   }
 
   const note = choreo.formations[shownIndex].note

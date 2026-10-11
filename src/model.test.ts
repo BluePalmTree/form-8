@@ -20,6 +20,7 @@ import {
   handlePos,
   parseChoreography,
   partRanges,
+  playStart,
   rangeBounds,
   pointAt,
   stateAt,
@@ -338,6 +339,15 @@ describe('parts', () => {
     expect(rangeBounds(get(), null)).toMatchObject({ from: 0, to: 3, start: 0, end: totalDuration(get()) })
     expect(rangeBounds(get(), 0)).toMatchObject({ from: 0, to: 1, start: 0, end: 2 + 4 + 2 })
     expect(rangeBounds(get(), 1)).toMatchObject({ from: 2, to: 3, start: arrivalTime(get(), 2), end: totalDuration(get()) })
+  })
+
+  it('starts a part with the transition from the previous part', () => {
+    const get = make()
+    const lead = arrivalTime(get(), 2) - 4
+    expect(playStart(get(), 1, 2)).toBe(lead)
+    expect(playStart(get(), 1, 3)).toBe(lead)
+    expect(playStart(get(), 0, 0)).toBe(0)
+    expect(playStart(get(), null, 2)).toBe(arrivalTime(get(), 2))
   })
 
   it('loads files without parts as a single part', () => {

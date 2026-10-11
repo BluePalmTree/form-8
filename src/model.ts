@@ -311,6 +311,16 @@ export function rangeBounds(c: Choreography, part: number | null): RangeBounds {
   }
 }
 
+/**
+ * Beat to start playback from when `index` is selected in the given view. At a part's first formation (or when the
+ * view is at its end) playback starts with the transition from the previous part, so its paths are danced too.
+ */
+export function playStart(c: Choreography, part: number | null, index: number): number {
+  const { from, to, start } = rangeBounds(c, part)
+  if (index > from && index < to) return arrivalTime(c, index)
+  return from > 0 ? start - c.formations[from].duration : start
+}
+
 /** Effective delay and walking time of a dancer in a transition (clamped to the transition). */
 export function effectiveTiming(f: Formation, id: string): Timing {
   const t = f.timing[id]

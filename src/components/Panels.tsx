@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportJson, formationPng, pngFiles, shareOrDownload } from '../export'
-import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, textOn, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, partColor, partOf, partRanges, rangeBounds } from '../model'
+import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, textOn, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, partColor, partOf, partRanges, playStart, rangeBounds } from '../model'
 import type { ObjectState, PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
@@ -23,10 +23,7 @@ export function PlaybackBar() {
   const ui = useUi.getState
   const { from, to } = rangeBounds(choreo, viewPart)
   // Play from the selected formation; from the beginning of the shown range if it is the last one (nothing left to play).
-  const startBeat = () => {
-    const { choreo } = useChoreo.getState()
-    return index >= to ? rangeBounds(choreo, viewPart).start : arrivalTime(choreo, index)
-  }
+  const startBeat = () => playStart(useChoreo.getState().choreo, viewPart, index)
   const go = (i: number) => ui().setIndex(Math.max(from, Math.min(to, i)))
   return (
     <div className="bar">
