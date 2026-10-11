@@ -76,6 +76,9 @@ export const PALETTE = [
 /** Color of the i-th dancer: the fixed palette first, then evenly spread hues. */
 export const colorFor = (i: number) => PALETTE[i] ?? hslToHex((i * 137.508) % 360, 65, 42)
 
+/** Light tint that marks the i-th part on the timeline: evenly spread hues, readable behind dark text. */
+export const partColor = (i: number) => `hsl(${Math.round((i * 137.508 + 250) % 360)} 70% 85%)`
+
 /** Automatic colors used before the fixed palette; used to migrate old files. */
 const legacyColorFor = (i: number) => hslToHex((i * 137.508) % 360, 65, 42)
 

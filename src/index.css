@@ -306,8 +306,12 @@ h2 {
   border: 0;
   border-right: 1px solid #fff;
   border-radius: 0;
-  background: #d9d3f5;
+  background: var(--part-color, #d9d3f5);
   font-size: 0.75rem;
+}
+
+.seg.part-start {
+  border-left: 2px solid #fff;
 }
 
 .seg:last-of-type {

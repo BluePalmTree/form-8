@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportJson, formationPng, pngFiles, shareOrDownload } from '../export'
-import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, textOn, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, partOf, partRanges, rangeBounds } from '../model'
+import { MAX_STAGE, MAX_TEMPO, MIN_STAGE, MIN_TEMPO, textOn, arrivalTime, createChoreography, dancerLabel, effectiveTiming, parseChoreography, partColor, partOf, partRanges, rangeBounds } from '../model'
 import type { ObjectState, PathStyle } from '../types'
 import { storage } from '../storage'
 import type { ChoreoSummary } from '../storage'
@@ -68,6 +69,7 @@ export function Timeline() {
   const viewPart = useUi((s) => s.viewPart)
   const { from, to, start, end } = rangeBounds(choreo, viewPart)
   const total = end - start
+  const ranges = partRanges(choreo)
   const pos = Math.max(0, Math.min(playing ? time : arrivalTime(choreo, index), end) - start)
   const pct = total > 0 ? (pos / total) * 100 : 0
   // Whole beats only; the epsilon guards against float error at segment ends.
@@ -87,11 +89,13 @@ export function Timeline() {
           if (i < from || i > to) return null
           // The transition into a part's first formation lies before the window.
           const len = (i > from ? f.duration : 0) + f.hold
+          const part = ranges.findIndex((r) => i >= r.from && i <= r.to)
+          const startsPart = ranges[part]?.from === i && i > from
           return (
             <button
               key={f.id}
-              className={i === index ? 'seg active' : 'seg'}
-              style={{ flexGrow: len, flexBasis: 0 }}
+              className={`seg${i === index ? ' active' : ''}${startsPart ? ' part-start' : ''}`}
+              style={{ flexGrow: len, flexBasis: 0, '--part-color': ranges.length > 1 ? partColor(part) : undefined } as CSSProperties}
               disabled={playing}
               title={label(f.name, i)}
               onClick={() => useUi.getState().setIndex(i)}
